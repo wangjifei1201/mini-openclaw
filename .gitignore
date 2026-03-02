@@ -1,0 +1,14 @@
+/frontend/node_modules/
+/frontend/static/
+/frontend/.next/
+/backend/__pycache__/
+/backend/graph/__pycache__/
+/backend/Library/
+/backend/knowledge/uploads/
+/backend/outputs/
+/backend/sessions/
+/backend/api/__pycache__/
+/backend/tools/__pycache__/
+/backend/memory/__pycache__/
+/backend/workspace/__pycache__/
+.env

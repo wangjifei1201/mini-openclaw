@@ -1,0 +1,102 @@
+<available_skills>
+  <skill>
+    <name>expense-reimbursement</name>
+    <description>协助处理北京慧点科技出差借款与报销，根据公司制度提供所需资料清单、时限要求与注意事项；支持国内差旅/借款管理等场景</description>
+    <location>./skills/expense-reimbursement/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>theme-factory</name>
+    <description>用于为主题设置样式的工具包。这些制品可以是幻灯片、文档、报告、HTML落地页等。有10个预设主题，包含颜色/字体，可以应用于任何已创建的制品，或即时生成新主题。</description>
+    <location>./skills/theme-factory/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>doc-coauthoring</name>
+    <description>引导用户完成协作编写文档的结构化工作流程。当用户想要编写文档、提案、技术规范、决策文档或类似结构化内容时使用。此工作流程帮助用户高效地传递上下文，通过迭代完善内容，并验证文档对读者有效。当用户提到编写文档、创建提案、起草规范或类似文档任务时触发。</description>
+    <location>./skills/doc-coauthoring/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>天气查询</name>
+    <description>查询指定城市的实时天气信息</description>
+    <location>./skills/get_weather/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>meeting-minutes-assistant</name>
+    <description>专业会议纪要整理助手。能够将杂乱的会议记录或录音文本，转化为结构清晰、重点突出、可立即执行的标准化会议纪要，并自动追踪行动项。</description>
+    <location>./skills/meeting-minutes-assistant/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>xlsx</name>
+    <description>当电子表格文件是主要输入或输出时随时使用此技能。这意味着用户想要：打开、读取、编辑或修复现有的 .xlsx、.xlsm、.csv 或 .tsv 文件（例如，添加列、计算公式、格式化、图表、清理混乱数据）；从零或其他数据源创建新电子表格；或在表格文件格式之间转换的任何任务。当用户通过名称或路径引用电子表格文件时特别触发——即使是随意的（如"我下载中的 xlsx"）——并想对它做些什么或从中生成什么。也触发清理或重组混乱表格数据文件（格式错误的行、位置错误的标题、垃圾数据）为适当的电子表格。交付物必须是电子表格文件。当主要交付物是 Word 文档、HTML 报告、独立 Python 脚本、数据库管道或 Google Sheets API 集成时，即使涉及表格数据，也不要触发。</description>
+    <location>./skills/xlsx/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>pdf</name>
+    <description>当用户需要对 PDF 文件进行任何操作时使用此技能。这包括从 PDF 中读取或提取文本/表格、将多个 PDF 合并为一个、拆分 PDF、旋转页面、添加水印、创建新 PDF、填写 PDF 表单、加密/解密 PDF、提取图片以及对扫描的 PDF 进行 OCR 使其可搜索。如果用户提到 .pdf 文件或要求生成一个，请使用此技能。</description>
+    <location>./skills/pdf/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>algorithmic-art</name>
+    <description>使用p5.js创建算法艺术，具有种子随机性和交互式参数探索。当用户要求使用代码创建艺术、生成艺术、算法艺术、流场或粒子系统时使用。创建原创算法艺术，而不是复制现有艺术家的作品以避免版权侵权。</description>
+    <location>./skills/algorithmic-art/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>internal-comms</name>
+    <description>一组资源，帮助我编写各种内部沟通文件，使用我公司喜欢的格式。当被要求编写某种内部沟通文件时（状态报告、领导层更新、3P更新、公司通讯、FAQ、事件报告、项目更新等），Claude应使用此技能。</description>
+    <location>./skills/internal-comms/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>kb-retriever</name>
+    <description>面向本地知识库目录的检索和问答助手。核心流程：(1)调用 RAG 检索 API 获取相关文档范围 (2)严格在 API 返回的文档范围内进行二次检索 (3)按文件类型使用对应工具进行精细化检索。用户问题涉及"从知识库目录回答问题/检索信息/查资料"时使用。</description>
+    <location>./skills/kb-retriever/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>skill-creator</name>
+    <description>创建有效技能的指南。当用户想要创建新技能（或更新现有技能）以使用专业知识、工作流程或工具集成扩展Claude的能力时使用此技能。</description>
+    <location>./skills/skill-creator/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>canvas-design</name>
+    <description>使用设计理念在.png和.pdf文档中创建美丽的视觉艺术。当用户要求创建海报、艺术作品、设计或其他静态作品时使用此技能。创建原创视觉设计，从不复制现有艺术家的作品以避免版权侵权。</description>
+    <location>./skills/canvas-design/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>pptx</name>
+    <description>当涉及 .pptx 文件时（作为输入、输出或两者）随时使用此技能。这包括：创建幻灯片演示、宣传文稿或演示文稿；从任何 .pptx 文件中读取、解析或提取文本（即使提取的内容将在其他地方使用，如电子邮件或摘要）；编辑、修改或更新现有演示文稿；合并或拆分幻灯片文件；处理模板、布局、演讲者备注或批注。当用户提到"文稿"、"幻灯片"、"演示文稿"或引用 .pptx 文件名时触发，无论他们计划之后如何处理内容。如果需要打开、创建或接触 .pptx 文件，请使用此技能。</description>
+    <location>./skills/pptx/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>slack-gif-creator</name>
+    <description>创建针对Slack优化的动画GIF的知识和工具。提供约束、验证工具和动画概念。当用户要求创建Slack的动画GIF时使用，如"为Slack制作一个X做Y的GIF"。</description>
+    <location>./skills/slack-gif-creator/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>webapp-testing</name>
+    <description>使用Playwright与本地Web应用程序交互和测试的工具包。支持验证前端功能、调试UI行为、捕获浏览器屏幕截图和查看浏览器日志。</description>
+    <location>./skills/webapp-testing/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>frontend-design</name>
+    <description>创建具有高品质设计的独特、生产级前端界面。当用户要求构建Web组件、页面、制品、海报或应用程序时使用此技能（示例包括网站、落地页、仪表板、React组件、HTML/CSS布局，或为任何Web UI进行样式美化）。生成创造性、精致的代码和UI设计，避免通用的AI美学。</description>
+    <location>./skills/frontend-design/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>mcp-builder</name>
+    <description>创建高质量MCP（模型上下文协议）服务器的指南，使LLM能够通过精心设计的工具与外部服务交互。在构建MCP服务器以集成外部API或服务时使用，无论是Python（FastMCP）还是Node/TypeScript（MCP SDK）。</description>
+    <location>./skills/mcp-builder/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>brand-guidelines</name>
+    <description>将Anthropic的官方品牌颜色和字体应用于任何可能受益于Anthropic外观和感觉的制品。当品牌颜色或样式指南、视觉格式或公司设计标准适用时使用。</description>
+    <location>./skills/brand-guidelines/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>docx</name>
+    <description>当用户想要创建、读取、编辑或操作 Word 文档（.docx 文件）时使用此技能。触发条件包括：提及"Word 文档"、"word document"、".docx"，或请求生成带有目录、标题、页码或信头等格式的专业文档。同时适用于从 .docx 文件中提取或重组内容、插入或替换文档中的图片、在 Word 文件中执行查找和替换、处理修订跟踪或批注，或将内容转换为精美的 Word 文档。如果用户要求以 Word 或 .docx 文件形式生成"报告"、"备忘录"、"信件"、"模板"或类似交付物，请使用此技能。请勿用于 PDF、电子表格、Google Docs 或与文档生成无关的一般编码任务。</description>
+    <location>./skills/docx/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>web-artifacts-builder</name>
+    <description>用于使用现代前端Web技术（React、Tailwind CSS、shadcn/ui）创建复杂的多组件claude.ai HTML制品的工具套件。用于需要状态管理、路由或shadcn/ui组件的复杂制品——不适用于简单的单文件HTML/JSX制品。</description>
+    <location>./skills/web-artifacts-builder/SKILL.md</location>
+  </skill>
+</available_skills>

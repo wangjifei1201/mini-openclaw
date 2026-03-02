@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini-OpenClaw 项目架构图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #1a202c;
+            font-size: 32px;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #718096;
+            font-size: 16px;
+            margin-bottom: 40px;
+        }
+        
+        svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .layer-rect {
+            fill: white;
+            stroke: #4a5568;
+            stroke-width: 2;
+            rx: 8;
+        }
+        
+        .layer-title {
+            font-size: 16px;
+            font-weight: 600;
+            fill: #2d3748;
+        }
+        
+        .module-rect {
+            rx: 6;
+            stroke-width: 2;
+        }
+        
+        .module-text {
+            font-size: 13px;
+            fill: #1a202c;
+            font-weight: 500;
+        }
+        
+        .module-desc {
+            font-size: 11px;
+            fill: #718096;
+        }
+        
+        .arrow {
+            stroke: #4a5568;
+            stroke-width: 2;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+        
+        .color-api { fill: #e2e8f0; stroke: #4299e1; }
+        .color-agent { fill: #ebf8ff; stroke: #4299e1; }
+        .color-tools { fill: #f0fff4; stroke: #48bb78; }
+        .color-skills { fill: #fffaf0; stroke: #ed8936; }
+        .color-memory { fill: #faf5ff; stroke: #9f7aea; }
+        .color-config { fill: #f7fafc; stroke: #a0aec0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ Mini-OpenClaw 项目架构</h1>
+        <p class="subtitle">轻量级、全透明的 AI Agent 系统</p>
+        
+        <svg viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#4a5568"/>
+                </marker>
+                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+            
+            <!-- API Layer -->
+            <g transform="translate(100, 40)">
+                <rect class="layer-rect color-api" width="1000" height="100"/>
+                <text class="layer-title" x="500" y="30" text-anchor="middle">🌐 API 层 (FastAPI - 端口 8002)</text>
+                
+                <g transform="translate(60, 50)">
+                    <rect x="0" y="0" width="130" height="35" rx="4" fill="#4299e1"/>
+                    <text x="65" y="22" text-anchor="middle" fill="white" font-size="12" font-weight="600">/api/chat</text>
+                    <text x="65" y="48" text-anchor="middle" font-size="10" fill="#718096">SSE 流式对话</text>
+                </g>
+                
+                <g transform="translate(220, 50)">
+                    <rect x="0" y="0" width="130" height="35" rx="4" fill="#4299e1"/>
+                    <text x="65" y="22" text-anchor="middle" fill="white" font-size="12" font-weight="600">/api/sessions</text>
+                    <text x="65" y="48" text-anchor="middle" font-size="10" fill="#718096">会话管理</text>
+                </g>
+                
+                <g transform="translate(380, 50)">
+                    <rect x="0" y="0" width="130" height="35" rx="4" fill="#4299e1"/>
+                    <text x="65" y="22" text-anchor="middle" fill="white" font-size="12" font-weight="600">/api/files</text>
+                    <text x="65" y="48" text-anchor="middle" font-size="10" fill="#718096">文件操作</text>
+                </g>
+                
+                <g transform="translate(540, 50)">
+                    <rect x="0" y="0" width="130" height="35" rx="4" fill="#4299e1"/>
+                    <text x="65" y="22" text-anchor="middle" fill="white" font-size="12" font-weight="600">/api/tokens</text>
+                    <text x="65" y="48" text-anchor="middle" font-size="10" fill="#718096">Token 统计</text>
+                </g>
+                
+                <g transform="translate(700, 50)">
+                    <rect x="0" y="0" width="130" height="35" rx="4" fill="#4299e1"/>
+                    <text x="65" y="22" text-anchor="middle" fill="white" font-size="12" font-weight="600">/api/compress</text>
+                    <text x="65" y="48" text-anchor="middle" font-size="10" fill="#718096">会话压缩</text>
+                </g>
+                
+                <g transform="translate(860, 50)">
+                    <rect x="0" y="0" width="130" height="35" rx="4" fill="#4299e1"/>
+                    <text x="65" y="22" text-anchor="middle" fill="white" font-size="12" font-weight="600">/api/config</text>
+                    <text x="65" y="48" text-anchor="middle" font-size="10" fill="#718096">配置管理</text>
+                </g>
+            </g>
+            
+            <!-- Arrow 1 -->
+            <line class="arrow" x1="600" y1="140" x2="600" y2="170"/>
+            
+            <!-- Agent Engine Layer -->
+            <g transform="translate(100, 170)">
+                <rect class="layer-rect color-agent" width="1000" height="140"/>
+                <text class="layer-title" x="500" y="30" text-anchor="middle">🤖 Agent 引擎 (LangChain Graph)</text>
+                
+                <g transform="translate(50, 50)">
+                    <rect x="0" y="0" width="170" height="70" rx="6" fill="#bee3f8" stroke="#4299e1" stroke-width="2"/>
+                    <text x="85" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#2b6cb0">agent.py</text>
+                    <text x="85" y="45" text-anchor="middle" font-size="11" fill="#4a5568">AgentManager 单例</text>
+                    <text x="85" y="60" text-anchor="middle" font-size="11" fill="#4a5568">Graph 运行时</text>
+                </g>
+                
+                <g transform="translate(250, 50)">
+                    <rect x="0" y="0" width="170" height="70" rx="6" fill="#bee3f8" stroke="#4299e1" stroke-width="2"/>
+                    <text x="85" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#2b6cb0">session_manager.py</text>
+                    <text x="85" y="45" text-anchor="middle" font-size="11" fill="#4a5568">会话存储</text>
+                    <text x="85" y="60" text-anchor="middle" font-size="11" fill="#4a5568">历史记录管理</text>
+                </g>
+                
+                <g transform="translate(450, 50)">
+                    <rect x="0" y="0" width="170" height="70" rx="6" fill="#bee3f8" stroke="#4299e1" stroke-width="2"/>
+                    <text x="85" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#2b6cb0">prompt_builder.py</text>
+                    <text x="85" y="45" text-anchor="middle" font-size="11" fill="#4a5568">System Prompt 组装</text>
+                    <text x="85" y="60" text-anchor="middle" font-size="11" fill="#4a5568">动态构建</text>
+                </g>
+                
+                <g transform="translate(650, 50)">
+                    <rect x="0" y="0" width="170" height="70" rx="6" fill="#bee3f8" stroke="#4299e1" stroke-width="2"/>
+                    <text x="85" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#2b6cb0">memory_indexer.py</text>
+                    <text x="85" y="45" text-anchor="middle" font-size="11" fill="#4a5568">RAG 索引</text>
+                    <text x="85" y="60" text-anchor="middle" font-size="11" fill="#4a5568">向量检索</text>
+                </g>
+                
+                <g transform="translate(850, 50)">
+                    <rect x="0" y="0" width="170" height="70" rx="6" fill="#bee3f8" stroke="#4299e1" stroke-width="2"/>
+                    <text x="85" y="25" text-anchor="middle" font-size="13" font-weight="600" fill="#2b6cb0">streaming_adapter.py</text>
+                    <text x="85" y="45" text-anchor="middle" font-size="11" fill="#4a5568">流式兼容</text>
+                    <text x="85" y="60" text-anchor="middle" font-size="11" fill="#4a5568">tool_call 修复</text>
+                </g>
+            </g>
+            
+            <!-- Arrow 2 -->
+            <line class="arrow" x1="600" y1="310" x2="600" y2="340"/>
+            
+            <!-- Tools Layer -->
+            <g transform="translate(100, 340)">
+                <rect class="layer-rect color-tools" width="1000" height="120"/>
+                <text class="layer-title" x="500" y="30" text-anchor="middle">🛠️ 核心工具 (Tools)</text>
+                
+                <g transform="translate(50, 50)">
+                    <rect x="0" y="0" width="140" height="55" rx="6" fill="#c6f6d5" stroke="#48bb78" stroke-width="2"/>
+                    <text x="70" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#276749">terminal_tool</text>
+                    <text x="70" y="42" text-anchor="middle" font-size="10" fill="#4a5568">Shell 命令执行</text>
+                </g>
+                
+                <g transform="translate(210, 50)">
+                    <rect x="0" y="0" width="140" height="55" rx="6" fill="#c6f6d5" stroke="#48bb78" stroke-width="2"/>
+                    <text x="70" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#276749">python_repl_tool</text>
+                    <text x="70" y="42" text-anchor="middle" font-size="10" fill="#4a5568">Python 代码执行</text>
+                </g>
+                
+                <g transform="translate(370, 50)">
+                    <rect x="0" y="0" width="140" height="55" rx="6" fill="#c6f6d5" stroke="#48bb78" stroke-width="2"/>
+                    <text x="70" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#276749">fetch_url_tool</text>
+                    <text x="70" y="42" text-anchor="middle" font-size="10" fill="#4a5568">网页内容抓取</text>
+                </g>
+                
+                <g transform="translate(530, 50)">
+                    <rect x="0" y="0" width="140" height="55" rx="6" fill="#c6f6d5" stroke="#48bb78" stroke-width="2"/>
+                    <text x="70" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#276749">read_file_tool</text>
+                    <text x="70" y="42" text-anchor="middle" font-size="10" fill="#4a5568">项目文件读取</text>
+                </g>
+                
+                <g transform="translate(690, 50)">
+                    <rect x="0" y="0" width="140" height="55" rx="6" fill="#c6f6d5" stroke="#48bb78" stroke-width="2"/>
+                    <text x="70" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#276749">search_knowledge</text>
+                    <text x="70" y="42" text-anchor="middle" font-size="10" fill="#4a5568">知识库语义检索</text>
+                </g>
+                
+                <g transform="translate(850, 50)">
+                    <rect x="0" y="0" width="140" height="55" rx="6" fill="#c6f6d5" stroke="#48bb78" stroke-width="2"/>
+                    <text x="70" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#276749">skills_scanner</text>
+                    <text x="70" y="42" text-anchor="middle" font-size="10" fill="#4a5568">技能目录扫描</text>
+                </g>
+            </g>
+            
+            <!-- Arrow 3 -->
+            <line class="arrow" x1="600" y1="460" x2="600" y2="490"/>
+            
+            <!-- Skills Layer -->
+            <g transform="translate(100, 490)">
+                <rect class="layer-rect color-skills" width="1000" height="140"/>
+                <text class="layer-title" x="500" y="30" text-anchor="middle">📚 技能系统 (22 个预置技能)</text>
+                
+                <g transform="translate(50, 50)">
+                    <rect x="0" y="0" width="125" height="35" rx="4" fill="#feebc8" stroke="#ed8936" stroke-width="2"/>
+                    <text x="62" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#c05621">docx / pptx / pdf</text>
+                </g>
+                
+                <g transform="translate(190, 50)">
+                    <rect x="0" y="0" width="125" height="35" rx="4" fill="#feebc8" stroke="#ed8936" stroke-width="2"/>
+                    <text x="62" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#c05621">xlsx 表格处理</text>
+                </g>
+                
+                <g transform="translate(330, 50)">
+                    <rect x="0" y="0" width="125" height="35" rx="4" fill="#feebc8" stroke="#ed8936" stroke-width="2"/>
+                    <text x="62" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#c05621">frontend-design</text>
+                </g>
+                
+                <g transform="translate(470, 50)">
+                    <rect x="0" y="0" width="125" height="35" rx="4" fill="#feebc8" stroke="#ed8936" stroke-width="2"/>
+                    <text x="62" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#c05621">canvas-design</text>
+                </g>
+                
+                <g transform="translate(610, 50)">
+                    <rect x="0" y="0" width="125" height="35" rx="4" fill="#feebc8" stroke="#ed8936" stroke-width="2"/>
+                    <text x="62" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#c05621">meeting-minutes</text>
+                </g>
+                
+                <g transform="translate(750, 50)">
+                    <rect x="0" y="0" width="125" height="35" rx="4" fill="#feebc8" stroke="#ed8936" stroke-width="2"/>
+                    <text x="62" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#c05621">mcp-builder</text>
+                </g>
+                
+                <g transform="translate(890, 50)">
+                    <rect x="0" y="0" width="125" height="35" rx="4" fill="#feebc8" stroke="#ed8936" stroke-width="2"/>
+                    <text x="62" y="22" text-anchor="middle" font-size="11" font-weight="600" fill="#c05621">+ 15 更多技能</text>
+                </g>
+                
+                <text x="500" y="120" text-anchor="middle" font-size="12" fill="#718096">每个技能包含 SKILL.md 说明文件 • 动态扫描 • 拖入即用</text>
+            </g>
+            
+            <!-- Memory & Config Layer -->
+            <g transform="translate(100, 660)">
+                <rect class="layer-rect color-memory" width="485" height="120"/>
+                <text class="layer-title" x="242" y="30" text-anchor="middle">💾 记忆系统</text>
+                
+                <g transform="translate(40, 50)">
+                    <rect x="0" y="0" width="180" height="55" rx="6" fill="#e9d8fd" stroke="#9f7aea" stroke-width="2"/>
+                    <text x="90" y="25" text-anchor="middle" font-size="12" font-weight="600" fill="#6b46c1">MEMORY.md</text>
+                    <text x="90" y="45" text-anchor="middle" font-size="10" fill="#4a5568">长期记忆 (人类可读)</text>
+                </g>
+                
+                <g transform="translate(260, 50)">
+                    <rect x="0" y="0" width="180" height="55" rx="6" fill="#e9d8fd" stroke="#9f7aea" stroke-width="2"/>
+                    <text x="90" y="25" text-anchor="middle" font-size="12" font-weight="600" fill="#6b46c1">memory_index/</text>
+                    <text x="90" y="45" text-anchor="middle" font-size="10" fill="#4a5568">向量索引 (RAG 使用)</text>
+                </g>
+            </g>
+            
+            <g transform="translate(615, 660)">
+                <rect class="layer-rect color-config" width="485" height="120"/>
+                <text class="layer-title" x="242" y="30" text-anchor="middle">⚙️ 配置与身份</text>
+                
+                <g transform="translate(40, 50)">
+                    <rect x="0" y="0" width="180" height="55" rx="6" fill="#edf2f7" stroke="#a0aec0" stroke-width="2"/>
+                    <text x="90" y="25" text-anchor="middle" font-size="12" font-weight="600" fill="#4a5568">config.py</text>
+                    <text x="90" y="45" text-anchor="middle" font-size="10" fill="#718096">环境变量驱动</text>
+                </g>
+                
+                <g transform="translate(260, 50)">
+                    <rect x="0" y="0" width="180" height="55" rx="6" fill="#edf2f7" stroke="#a0aec0" stroke-width="2"/>
+                    <text x="90" y="25" text-anchor="middle" font-size="12" font-weight="600" fill="#4a5568">workspace/*.md</text>
+                    <text x="90" y="45" text-anchor="middle" font-size="10" fill="#718096">SOUL / IDENTITY / USER</text>
+                </g>
+            </g>
+            
+            <!-- Sessions Storage -->
+            <g transform="translate(100, 800)">
+                <rect class="layer-rect" width="1000" height="60" fill="#f7fafc" stroke="#cbd5e0" stroke-width="2" rx="8"/>
+                <text class="layer-title" x="500" y="25" text-anchor="middle">📁 会话存储 (sessions/*.json) + 归档 (sessions/archive/)</text>
+                <text x="500" y="48" text-anchor="middle" font-size="11" fill="#718096">JSON 格式 • 支持多轮对话 • 自动标题生成</text>
+            </g>
+            
+            <!-- Connection lines -->
+            <line class="arrow" x1="342" y1="660" x2="342" y2="630"/>
+            <line class="arrow" x1="857" y1="660" x2="857" y2="630"/>
+            
+        </svg>
+        
+        <div style="margin-top: 40px; padding: 24px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #4299e1;">
+            <h3 style="color: #2d3748; margin-bottom: 12px; font-size: 16px;">🎯 核心设计理念</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                <div style="padding: 12px; background: white; border-radius: 6px;">
+                    <strong style="color: #4299e1;">文件即记忆</strong>
+                    <p style="font-size: 13px; color: #718096; margin-top: 4px;">所有记忆以 Markdown 文件存储，透明可控</p>
+                </div>
+                <div style="padding: 12px; background: white; border-radius: 6px;">
+                    <strong style="color: #48bb78;">技能即插件</strong>
+                    <p style="font-size: 13px; color: #718096; margin-top: 4px;">通过 SKILL.md 文件扩展能力，拖入即用</p>
+                </div>
+                <div style="padding: 12px; background: white; border-radius: 6px;">
+                    <strong style="color: #ed8936;">透明性</strong>
+                    <p style="font-size: 13px; color: #718096; margin-top: 4px;">System Prompt、工具调用、记忆读写完全透明</p>
+                </div>
+                <div style="padding: 12px; background: white; border-radius: 6px;">
+                    <strong style="color: #9f7aea;">流式优先</strong>
+                    <p style="font-size: 13px; color: #718096; margin-top: 4px;">全链路 SSE 流式输出，提升用户体验</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
