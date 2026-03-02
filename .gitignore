@@ -12,3 +12,4 @@
 /backend/memory/__pycache__/
 /backend/workspace/__pycache__/
 .env
+/backend/storage/
