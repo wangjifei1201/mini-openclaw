@@ -16,7 +16,7 @@
   </skill>
   <skill>
     <name>天气查询</name>
-    <description>查询指定城市的实时天气信息</description>
+    <description>查询指定城市的实时天气信息和未来预报</description>
     <location>./skills/get_weather/SKILL.md</location>
   </skill>
   <skill>
