@@ -31,14 +31,14 @@ if [ ! -f ".env" ]; then
 fi
 
 # 检查 Python
-if ! command -v python3 &> /dev/null; then
-    echo -e "${RED}[错误] 未找到 Python3${NC}"
-    exit 1
-fi
+# if ! command -v python3 &> /dev/null; then
+#     echo -e "${RED}[错误] 未找到 Python3${NC}"
+#     exit 1
+# fi
 
-# 安装依赖
-echo -e "${GREEN}[1/2] 检查并安装依赖...${NC}"
-pip install -r requirements.txt -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com -q
+# # 安装依赖
+# echo -e "${GREEN}[1/2] 检查并安装依赖...${NC}"
+# pip install -r requirements.txt -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com -q
 
 # 启动服务
 echo -e "${GREEN}[2/2] 启动后端服务...${NC}"
@@ -51,4 +51,4 @@ echo -e "${BLUE}========================================${NC}"
 echo ""
 
 # 启动 uvicorn（前台运行，显示日志）
-python3 -m uvicorn app:app --port 8002 --host 0.0.0.0 --reload
+python -m uvicorn app:app --port 8002 --host 0.0.0.0 --reload
