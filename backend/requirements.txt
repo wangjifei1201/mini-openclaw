@@ -4,13 +4,16 @@ uvicorn[standard]>=0.27.0
 python-multipart>=0.0.6
 sse-starlette>=2.0.0
 
-# LangChain 1.x
-langchain>=0.3.0
-langchain-core>=0.3.0
-langchain-community>=0.3.0
-langchain-experimental>=0.3.0
+# LangChain 1.x（与 pydantic<2 兼容）
+langchain>=1.2.0,<2.0
+langchain-core>=1.2.0,<2.0
+langchain-community>=1.2.0,<2.0
+langchain-experimental>=1.2.0,<2.0
 langchain-deepseek>=0.1.0
 langgraph>=0.2.0
+
+# Pydantic 1.x is required for LangChain 1.x
+pydantic<2.0
 
 # LlamaIndex
 llama-index>=0.11.0

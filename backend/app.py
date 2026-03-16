@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 # 添加项目根目录到 Python 路径
 BASE_DIR = Path(__file__).parent.absolute()
@@ -104,6 +105,12 @@ app.include_router(tokens_router, prefix="/api", tags=["Tokens"])
 app.include_router(compress_router, prefix="/api", tags=["Compress"])
 app.include_router(config_router, prefix="/api", tags=["Config"])
 app.include_router(skills_router, prefix="/api", tags=["Skills"])
+
+# 挂载静态文件目录 - outputs 文件夹可直接访问
+outputs_dir = BASE_DIR / "outputs"
+if outputs_dir.exists():
+    app.mount("/outputs", StaticFiles(directory=str(outputs_dir)), name="outputs")
+    print(f"[静态文件] outputs 目录已挂载: {outputs_dir}")
 
 
 @app.get("/")
