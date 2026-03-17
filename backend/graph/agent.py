@@ -4,6 +4,7 @@ Agent 引擎 - 核心单例类，管理 Agent 的生命周期
 """
 import asyncio
 import re
+import time
 from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
@@ -202,6 +203,7 @@ class AgentManager:
             # 流式执行
             current_content = ""
             tool_calls = []
+            tool_start_times = {}  # 记录工具调用开始时间，key为 (tool_name, idx)
             consecutive_empty_tool_calls = 0  # 连续空参数工具调用计数器
 
             async for event in agent.astream_events(
@@ -233,13 +235,18 @@ class AgentManager:
                             current_content += token_text
                             yield {
                                 "type": "token",
+                                "source": "llm",
                                 "content": token_text,
+                                "llm_output": token_text,
                             }
 
                 # 工具调用开始
                 elif kind == "on_tool_start":
                     tool_name = event.get("name", "unknown")
                     tool_input = event.get("data", {}).get("input", {})
+
+                    # 记录工具调用开始时间
+                    tool_start_times[len(tool_calls)] = time.time()
 
                     # 检测流式 tool_call 兼容性问题：空参数
                     if not tool_input:
@@ -255,14 +262,22 @@ class AgentManager:
 
                     yield {
                         "type": "tool_start",
+                        "source": "tool",
                         "tool": tool_name,
+                        "tool_input": tool_input,
                         "input": tool_input,
+                        "start_time": tool_start_times[len(tool_calls)],
                     }
 
                 # 工具调用结束
                 elif kind == "on_tool_end":
                     tool_name = event.get("name", "unknown")
                     tool_output = event.get("data", {}).get("output", "")
+
+                    # 计算工具执行耗时
+                    tool_idx = len(tool_calls)
+                    start_time = tool_start_times.get(tool_idx, time.time())
+                    elapsed_time = time.time() - start_time  # 单位：秒
 
                     # ToolMessage 会包含 content/name/tool_call_id 等字段，
                     # 这里只取出真正的内容让前端显示。
@@ -276,20 +291,42 @@ class AgentManager:
                     if not isinstance(output_content, str):
                         output_content = str(output_content)
 
+                    # 简单错误检测：若输出包含 traceback/Exception，则标记为失败
+                    tool_status = "ok"
+                    tool_error = None
+                    if isinstance(output_content, str) and (
+                        "Traceback" in output_content or "Exception" in output_content or "Error:" in output_content
+                    ):
+                        tool_status = "error"
+                        tool_error = output_content
+
                     tool_calls.append(
                         {
                             "tool": tool_name,
                             "input": event.get("data", {}).get("input", {}),
+                            "tool_input": event.get("data", {}).get("input", {}),
                             "output": output_content,
+                            "tool_output": output_content,
                             "tool_call_id": tool_call_id,
+                            "tool_status": tool_status,
+                            "tool_error": tool_error,
+                            "start_time": start_time,
+                            "elapsed_time": elapsed_time,
                         }
                     )
 
                     yield {
                         "type": "tool_end",
+                        "source": "tool",
                         "tool": tool_name,
+                        "tool_input": event.get("data", {}).get("input", {}),
+                        "tool_output": output_content,
                         "output": output_content,
                         "tool_call_id": tool_call_id,
+                        "tool_status": tool_status,
+                        "tool_error": tool_error,
+                        "start_time": start_time,
+                        "elapsed_time": elapsed_time,
                     }
 
                     # 工具执行完毕后，Agent 开始新一轮文本生成
@@ -300,6 +337,7 @@ class AgentManager:
             yield {
                 "type": "done",
                 "content": current_content,
+                "llm_output": current_content,
                 "session_id": session_id,
                 "tool_calls": tool_calls,
             }

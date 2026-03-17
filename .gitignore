@@ -13,3 +13,5 @@
 /backend/workspace/__pycache__/
 .env
 /backend/storage/
+backend/.npm/_update-notifier-last-checked
+backend/.npm/_logs/2026-03-17T04_35_25_815Z-debug-0.log

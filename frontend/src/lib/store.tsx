@@ -6,8 +6,16 @@ import { streamChat, getSessions, createSession, deleteSession, getSessionHistor
 // 类型定义
 export interface ToolCall {
   tool: string
-  input: any
-  output: string
+  source?: 'tool' | 'llm'
+  tool_call_id?: string
+  tool_status?: 'ok' | 'error'
+  tool_error?: string
+  start_time?: number
+  elapsed_time?: number
+  input?: any
+  output?: string
+  tool_input?: any
+  tool_output?: string
 }
 
 export interface RetrievalResult {
@@ -54,6 +62,7 @@ interface AppContextType {
   isStreaming: boolean
   isCompressing: boolean
   ragMode: boolean
+  isMobileSidebarOpen: boolean
   
   // 编辑器状态
   currentFile: string | null
@@ -71,6 +80,7 @@ interface AppContextType {
   setFileContent: (content: string) => void
   compress: () => Promise<void>
   toggleRAGMode: () => Promise<void>
+  setIsMobileSidebarOpen: (open: boolean) => void
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -87,6 +97,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isStreaming, setIsStreaming] = useState(false)
   const [isCompressing, setIsCompressing] = useState(false)
   const [ragMode, setRagModeState] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   
   // 编辑器状态
   const [currentFile, setCurrentFile] = useState<string | null>(null)
@@ -207,10 +218,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ))
             break
             
-          case 'tool_start':
+          case 'tool_start': {
+            const toolInput = data.tool_input ?? data.input
             currentToolCalls.push({
+              source: data.source ?? 'tool',
               tool: data.tool,
+              tool_call_id: data.tool_call_id,
               input: data.input,
+              tool_input: toolInput,
+              start_time: data.start_time,
               output: '执行中...',
             })
             setMessages(prev => prev.map(msg =>
@@ -219,11 +235,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 : msg
             ))
             break
-            
-          case 'tool_end':
+          }
+
+          case 'tool_end': {
             const lastIdx = currentToolCalls.length - 1
             if (lastIdx >= 0) {
-              currentToolCalls[lastIdx].output = data.output || ''
+              const toolOutput = data.tool_output ?? data.output ?? ''
+              currentToolCalls[lastIdx] = {
+                ...currentToolCalls[lastIdx],
+                tool_call_id: data.tool_call_id ?? currentToolCalls[lastIdx].tool_call_id,
+                output: toolOutput,
+                tool_output: toolOutput,
+                tool_status: data.tool_status,
+                tool_error: data.tool_error,
+                elapsed_time: data.elapsed_time,
+              }
               setMessages(prev => prev.map(msg =>
                 msg.id === assistantMsgId
                   ? { ...msg, tool_calls: [...currentToolCalls] }
@@ -231,6 +257,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               ))
             }
             break
+          }
             
           case 'new_response':
             // 创建新的助手消息段
@@ -307,6 +334,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isStreaming,
     isCompressing,
     ragMode,
+    isMobileSidebarOpen,
     currentFile,
     fileContent,
     loadSessions,
@@ -320,6 +348,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setFileContent,
     compress,
     toggleRAGMode,
+    setIsMobileSidebarOpen,
   }
   
   return (

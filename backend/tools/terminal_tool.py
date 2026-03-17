@@ -172,7 +172,7 @@ class TerminalTool(BaseTool):
     async def _arun(self, command: str) -> str:
         """异步执行命令"""
         # 检查命令长度，避免过长命令
-        if len(command) > 10000:  # 假设最大10KB
+        if len(command) > 100000:  # 假设最大100KB
             return "错误：命令过长，拒绝执行。"
 
         # 检查高危命令

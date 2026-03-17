@@ -22,10 +22,17 @@ ALLOWED_PREFIXES = [
     "memory/",
     "skills/",
     "knowledge/",
+    "outputs/",
+    "/workspace/",
+    "/memory/",
+    "/skills/",
+    "/knowledge/",
+    "/outputs/",
     "./workspace/",
     "./memory/",
     "./skills/",
     "./knowledge/",
+    "./outputs/",
 ]
 
 # 允许的根目录文件

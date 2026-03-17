@@ -1,6 +1,7 @@
 """
 MEMORY.md 向量索引器 - 专门为长期记忆构建的 RAG 检索
 """
+import traceback
 import hashlib
 from pathlib import Path
 from typing import List, Dict, Any, Optional
@@ -109,6 +110,7 @@ class MemoryIndexer:
             return True
             
         except Exception as e:
+            print(traceback.format_exc())
             print(f"MEMORY.md 索引构建失败: {e}")
             return False
     
