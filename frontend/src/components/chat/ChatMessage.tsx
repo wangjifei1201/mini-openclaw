@@ -68,22 +68,22 @@ export default function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === 'user'
   
   return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
+    <div className={`flex gap-2 md:gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
       {/* 头像 */}
       <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+        className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
           isUser ? 'bg-vibrant-orange' : 'bg-klein-blue'
         }`}
       >
         {isUser ? (
-          <User size={16} className="text-white" />
+          <User size={14} className="md:w-4 md:h-4" />
         ) : (
-          <Bot size={16} className="text-white" />
+          <Bot size={14} className="md:w-4 md:h-4" />
         )}
       </div>
       
       {/* 消息内容 */}
-      <div className={`flex-1 max-w-[80%] ${isUser ? 'text-right' : ''}`}>
+      <div className={`flex-1 max-w-[85%] md:max-w-[80%] ${isUser ? 'text-right' : ''}`}>
         {/* 检索结果 */}
         {message.retrievals && message.retrievals.length > 0 && (
           <RetrievalCard retrievals={message.retrievals} />
@@ -91,21 +91,21 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         
         {/* 附件列表 */}
         {message.attachments && message.attachments.length > 0 && (
-          <div className={`mb-2 flex flex-wrap gap-2 ${isUser ? 'justify-end' : ''}`}>
+          <div className={`mb-2 flex flex-wrap gap-1 md:gap-2 ${isUser ? 'justify-end' : ''}`}>
             {message.attachments.map((att, index) => (
               <div
                 key={`${att.path}-${index}`}
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${
+                className={`inline-flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-xs md:text-sm ${
                   isUser ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
                 }`}
               >
                 {att.type === 'image' ? (
-                  <ImageIcon size={14} className="flex-shrink-0" />
+                  <ImageIcon size={12} className="md:w-3.5 md:h-3.5 flex-shrink-0" />
                 ) : (
-                  <FileText size={14} className="flex-shrink-0" />
+                  <FileText size={12} className="md:w-3.5 md:h-3.5 flex-shrink-0" />
                 )}
-                <span className="truncate max-w-[180px]">{att.filename}</span>
-                <span className="text-xs opacity-60">
+                <span className="truncate max-w-[120px] md:max-w-[180px]">{att.filename}</span>
+                <span className="text-xs opacity-60 hidden sm:inline">
                   {att.size < 1024
                     ? `${att.size}B`
                     : att.size < 1024 * 1024
@@ -124,7 +124,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         
         {/* 消息气泡 */}
         <div
-          className={`inline-block p-3 rounded-2xl ${
+          className={`inline-block p-2 md:p-3 rounded-2xl text-sm md:text-base ${
             isUser
               ? 'bg-klein-blue text-white rounded-tr-sm'
               : 'bg-white shadow-sm rounded-tl-sm'

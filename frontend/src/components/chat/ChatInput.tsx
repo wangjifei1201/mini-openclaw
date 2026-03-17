@@ -103,22 +103,22 @@ export default function ChatInput() {
             return (
               <div
                 key={`${file.name}-${index}`}
-                className="relative group flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2 pr-8 max-w-xs"
+                className="relative group flex items-center gap-2 bg-gray-100 rounded-lg px-2 md:px-3 py-2 pr-6 md:pr-8 max-w-xs"
               >
                 {isImage ? (
-                  <ImageIcon size={16} className="text-vibrant-orange flex-shrink-0" />
+                  <ImageIcon size={14} className="text-vibrant-orange flex-shrink-0" />
                 ) : (
-                  <FileText size={16} className="text-klein-blue flex-shrink-0" />
+                  <FileText size={14} className="text-klein-blue flex-shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm text-gray-800 truncate">{file.name}</div>
+                  <div className="text-xs md:text-sm text-gray-800 truncate">{file.name}</div>
                   <div className="text-xs text-gray-500">{formatFileSize(file.size)}</div>
                 </div>
                 <button
                   onClick={() => removeFile(index)}
                   className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-200 transition-colors"
                 >
-                  <X size={14} className="text-gray-500" />
+                  <X size={12} className="text-gray-500" />
                 </button>
               </div>
             )
@@ -146,23 +146,23 @@ export default function ChatInput() {
             }
             disabled={isDisabled}
             rows={1}
-            className="w-full resize-none rounded-2xl border border-apple-border px-4 py-3 pr-20 text-gray-800 placeholder-gray-400 focus:border-klein-blue focus:ring-0 disabled:bg-gray-50 disabled:cursor-not-allowed"
+            className="w-full resize-none rounded-2xl border border-apple-border px-3 md:px-4 py-2 md:py-3 pr-16 md:pr-20 text-gray-800 placeholder-gray-400 focus:border-klein-blue focus:ring-0 disabled:bg-gray-50 disabled:cursor-not-allowed text-sm md:text-base"
             style={{ maxHeight: '200px' }}
           />
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isDisabled}
-            className="absolute right-12 bottom-2 p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="absolute right-10 md:right-12 bottom-1.5 md:bottom-2 p-1.5 md:p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="添加附件"
           >
-            <Paperclip size={18} />
+            <Paperclip size={16} className="md:w-5 md:h-5" />
           </button>
           <button
             onClick={handleSubmit}
             disabled={isDisabled || (!input.trim() && selectedFiles.length === 0)}
-            className="absolute right-2 bottom-2 p-2 rounded-full bg-klein-blue text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            className="absolute right-1.5 md:right-2 bottom-1.5 md:bottom-2 p-1.5 md:p-2 rounded-full bg-klein-blue text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
           >
-            <Send size={18} />
+            <Send size={16} className="md:w-5 md:h-5" />
           </button>
           <input
             ref={fileInputRef}

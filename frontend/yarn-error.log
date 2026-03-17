@@ -1,0 +1,61 @@
+Arguments: 
+  /usr/local/bin/node /usr/local/bin/yarn install
+
+PATH: 
+  /Applications/Docker.app/Contents/Resources/bin:/Library/Frameworks/Python.framework/Versions/3.8/bin:/usr/local/opt/llvm@15/bin:/Users/wangjifei/.opencode/bin:/Users/wangjifei/miniforge3/bin:/Users/wangjifei/miniforge3/condabin:/Users/wangjifei/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand:/Users/wangjifei/Library/Application Support/Code/User/globalStorage/github.copilot-chat/copilotCli:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Library/Apple/usr/bin:/Applications/VMware Fusion.app/Contents/Public:/usr/local/go/bin:/Users/wangjifei/Library/Application Support/Code/User/globalStorage/github.copilot-chat/debugCommand:/Users/wangjifei/Library/Application Support/Code/User/globalStorage/github.copilot-chat/copilotCli:/Users/wangjifei/.vscode/extensions/ms-python.debugpy-2025.19.2026030601-darwin-x64/bundled/scripts/noConfigScripts
+
+Yarn version: 
+  1.22.19
+
+Node version: 
+  24.11.1
+
+Platform: 
+  darwin x64
+
+Trace: 
+  Error: getaddrinfo ENOTFOUND registry.npmjs.org
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26)
+
+npm manifest: 
+  {
+    "name": "mini-openclaw-frontend",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+      "dev": "next dev -p 3001",
+      "build": "next build",
+      "start": "next start -p 3001",
+      "lint": "next lint"
+    },
+    "dependencies": {
+      "@monaco-editor/react": "^4.6.0",
+      "clsx": "^2.1.0",
+      "lucide-react": "^0.344.0",
+      "next": "14.2.0",
+      "react": "^18.2.0",
+      "react-dom": "^18.2.0",
+      "react-markdown": "^9.0.1",
+      "rehype-raw": "^7.0.0",
+      "rehype-sanitize": "^6.0.0",
+      "remark-gfm": "^4.0.0",
+      "tailwind-merge": "^2.2.1"
+    },
+    "devDependencies": {
+      "@types/node": "^20.11.0",
+      "@types/react": "^18.2.0",
+      "@types/react-dom": "^18.2.0",
+      "autoprefixer": "^10.4.17",
+      "eslint": "^8.56.0",
+      "eslint-config-next": "14.2.0",
+      "postcss": "^8.4.35",
+      "tailwindcss": "^3.4.1",
+      "typescript": "^5.3.0"
+    }
+  }
+
+yarn manifest: 
+  No manifest
+
+Lockfile: 
+  No lockfile

@@ -37,6 +37,8 @@ export default function Sidebar() {
     ragMode,
     compress,
     toggleRAGMode,
+    isMobileSidebarOpen,
+    setIsMobileSidebarOpen,
   } = useApp()
   
   const [activeTab, setActiveTab] = useState<TabType>('chat')
@@ -86,7 +88,16 @@ export default function Sidebar() {
   }
   
   return (
-    <div className="h-full flex flex-col bg-white border-r border-apple-border">
+    <div className="h-full flex flex-col bg-white border-r border-apple-border md:w-auto w-80">
+      {/* 移动端关闭按钮 */}
+      <div className="md:hidden p-3 border-b border-apple-border">
+        <button
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="text-gray-500 hover:text-gray-700 text-sm"
+        >
+          ✕ 关闭
+        </button>
+      </div>
       {/* 导航标签 */}
       <div className="flex border-b border-apple-border">
         <button

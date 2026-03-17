@@ -15,6 +15,8 @@ export default function Home() {
     inspectorWidth,
     setInspectorWidth,
     currentFile,
+    isMobileSidebarOpen,
+    setIsMobileSidebarOpen,
   } = useApp()
   
   // 处理左侧边栏拖拽
@@ -34,13 +36,28 @@ export default function Home() {
       
       {/* 主内容区 */}
       <div className="flex-1 flex pt-14 overflow-hidden">
-        {/* 左侧边栏 */}
-        <div style={{ width: sidebarWidth }} className="flex-shrink-0">
+        {/* 移动端侧边栏遮罩 */}
+        {isMobileSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+        )}
+        
+        {/* 左侧边栏 - 桌面版固定，移动版overlay */}
+        <div
+          className={`${
+            isMobileSidebarOpen ? 'fixed left-0 top-14 z-50' : 'hidden'
+          } md:block md:relative md:top-0`}
+          style={{ width: sidebarWidth }}
+        >
           <Sidebar />
         </div>
         
-        {/* 左侧拖拽条 */}
-        <ResizeHandle onResize={handleSidebarResize} direction="right" />
+        {/* 桌面版左侧拖拽条 */}
+        <div className="hidden md:block">
+          <ResizeHandle onResize={handleSidebarResize} direction="right" />
+        </div>
         
         {/* 中间聊天区 */}
         <div className="flex-1 min-w-0">
