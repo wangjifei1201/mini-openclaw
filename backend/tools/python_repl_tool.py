@@ -236,6 +236,6 @@ class PythonREPLTool(BaseTool):
         return self._run(code)
 
 
-def create_python_repl_tool() -> Type[PythonREPLTool]:
-    """创建 Python REPL 工具类"""
-    return PythonREPLTool
+def create_python_repl_tool() -> PythonREPLTool:
+    """创建 Python REPL 工具实例"""
+    return PythonREPLTool()

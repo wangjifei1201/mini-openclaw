@@ -182,6 +182,6 @@ class FetchURLTool(BaseTool):
             return f"错误：{type(e).__name__}: {str(e)}"
 
 
-def create_fetch_url_tool() -> Type[FetchURLTool]:
-    """创建 Fetch URL 工具类"""
-    return FetchURLTool
+def create_fetch_url_tool() -> FetchURLTool:
+    """创建 Fetch URL 工具实例"""
+    return FetchURLTool()

@@ -2,17 +2,18 @@
 Agent 引擎 - 核心单例类，管理 Agent 的生命周期
 使用 LangChain 1.x 的 create_agent API (基于 Graph 运行时)
 """
-import re
 import asyncio
+import re
 from pathlib import Path
-from typing import List, Dict, Any, Optional, AsyncGenerator
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
-from config import settings, get_rag_mode, BASE_DIR
+from config import BASE_DIR, get_rag_mode, settings
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from tools import get_all_tools
-from .session_manager import SessionManager
-from .prompt_builder import PromptBuilder
+
 from .memory_indexer import MemoryIndexer
+from .prompt_builder import PromptBuilder
+from .session_manager import SessionManager
 from .streaming_adapter import StreamingToolCallAdapter
 
 # Agent 图执行最大步数（防止无限循环）
@@ -139,10 +140,7 @@ class AgentManager:
         return messages
 
     async def astream(
-        self,
-        message: str,
-        session_id: str,
-        history: Optional[List[Dict[str, Any]]] = None
+        self, message: str, session_id: str, history: Optional[List[Dict[str, Any]]] = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         流式执行 Agent
@@ -184,10 +182,12 @@ class AgentManager:
 
                     # 将检索结果追加到历史（不持久化）
                     context = self.memory_indexer.format_retrieval_context(results)
-                    history.append({
-                        "role": "assistant",
-                        "content": context,
-                    })
+                    history.append(
+                        {
+                            "role": "assistant",
+                            "content": context,
+                        }
+                    )
 
             # 构建 Agent (每次重建确保最新 System Prompt)
             agent = self._build_agent()
@@ -225,10 +225,10 @@ class AgentManager:
                         )
                         # 过滤未闭合的 <think> 开始标签（流式中间态）
                         if "<think>" in token_text:
-                            token_text = token_text[:token_text.index("<think>")]
+                            token_text = token_text[: token_text.index("<think>")]
                         # 过滤未闭合的 </think> 结束标签（流式中间态）
                         if "</think>" in token_text:
-                            token_text = token_text[token_text.index("</think>") + len("</think>"):]
+                            token_text = token_text[token_text.index("</think>") + len("</think>") :]
                         if token_text:
                             current_content += token_text
                             yield {
@@ -264,16 +264,32 @@ class AgentManager:
                     tool_name = event.get("name", "unknown")
                     tool_output = event.get("data", {}).get("output", "")
 
-                    tool_calls.append({
-                        "tool": tool_name,
-                        "input": event.get("data", {}).get("input", {}),
-                        "output": str(tool_output),
-                    })
+                    # ToolMessage 会包含 content/name/tool_call_id 等字段，
+                    # 这里只取出真正的内容让前端显示。
+                    tool_call_id = None
+                    output_content = tool_output
+                    if isinstance(tool_output, ToolMessage):
+                        tool_call_id = getattr(tool_output, "tool_call_id", None)
+                        output_content = getattr(tool_output, "content", "")
+
+                    # 确保输出为字符串
+                    if not isinstance(output_content, str):
+                        output_content = str(output_content)
+
+                    tool_calls.append(
+                        {
+                            "tool": tool_name,
+                            "input": event.get("data", {}).get("input", {}),
+                            "output": output_content,
+                            "tool_call_id": tool_call_id,
+                        }
+                    )
 
                     yield {
                         "type": "tool_end",
                         "tool": tool_name,
-                        "output": str(tool_output),
+                        "output": output_content,
+                        "tool_call_id": tool_call_id,
                     }
 
                     # 工具执行完毕后，Agent 开始新一轮文本生成
@@ -292,10 +308,7 @@ class AgentManager:
             error_msg = str(e)
             # 将递归超限错误转为更友好的提示
             if "recursion limit" in error_msg.lower():
-                error_msg = (
-                    f"Agent 执行步数超过上限 ({RECURSION_LIMIT})，任务已中止。\n"
-                    "可能原因：工具调用陷入循环，或模型流式输出格式不兼容导致工具参数丢失。"
-                )
+                error_msg = f"Agent 执行步数超过上限 ({RECURSION_LIMIT})，任务已中止。\n" "可能原因：工具调用陷入循环，或模型流式输出格式不兼容导致工具参数丢失。"
             yield {
                 "type": "error",
                 "error": error_msg,

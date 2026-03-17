@@ -32,23 +32,15 @@ class SearchKnowledgeTool(BaseTool):
 - top_k: 返回结果数量（默认3）"""
     args_schema: Type[BaseModel] = SearchKnowledgeInput
 
-    # 类变量
-    _root_dir: Optional[Path] = None
+    root_dir: Path = Field(default=None)
     _index: Any = None
     _is_initialized: bool = False
 
-    @classmethod
-    def set_root_dir(cls, root_dir: Path):
-        cls._root_dir = root_dir
-
-    def __init__(self, **kwargs):
+    def __init__(self, root_dir: Path, **kwargs):
         super().__init__(**kwargs)
-        if self._root_dir is None:
-            raise ValueError("SearchKnowledgeTool root_dir not set. Call set_root_dir first.")
-
-    @property
-    def root_dir(self) -> Path:
-        return self._root_dir
+        self.root_dir = root_dir
+        self._index = None
+        self._is_initialized = False
 
     def _initialize_index(self) -> bool:
         """惰性初始化索引"""
@@ -143,7 +135,6 @@ class SearchKnowledgeTool(BaseTool):
         return self._run(query, top_k)
 
 
-def create_search_knowledge_tool(root_dir: Path) -> Type[SearchKnowledgeTool]:
-    """创建知识库搜索工具类"""
-    SearchKnowledgeTool.set_root_dir(root_dir)
-    return SearchKnowledgeTool
+def create_search_knowledge_tool(root_dir: Path) -> SearchKnowledgeTool:
+    """创建知识库搜索工具实例"""
+    return SearchKnowledgeTool(root_dir=root_dir)

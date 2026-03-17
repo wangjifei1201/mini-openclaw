@@ -2,7 +2,7 @@
 工具注册工厂 - 统一管理5个核心工具
 """
 from pathlib import Path
-from typing import List, Type
+from typing import List
 
 from langchain_core.tools import BaseTool
 
@@ -13,7 +13,7 @@ from .search_knowledge_tool import create_search_knowledge_tool
 from .terminal_tool import create_terminal_tool
 
 
-def get_all_tools(base_dir: Path) -> List[Type[BaseTool]]:
+def get_all_tools(base_dir: Path) -> List[BaseTool]:
     """
     获取所有核心工具
 

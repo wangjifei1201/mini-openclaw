@@ -2,6 +2,10 @@
 命令行操作工具 - 沙箱化的 Shell 命令执行
 """
 import asyncio
+import os
+import re
+import shlex
+import subprocess
 from pathlib import Path
 from typing import Optional, Type
 
@@ -39,21 +43,10 @@ class TerminalTool(BaseTool):
 输入参数：command - 要执行的命令字符串"""
     args_schema: Type[BaseModel] = TerminalInput
 
-    # 类变量，用于存储root_dir
-    _root_dir: Optional[Path] = None
+    root_dir: Path = Field(default=None)
 
-    @classmethod
-    def set_root_dir(cls, root_dir: Path):
-        cls._root_dir = root_dir
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        if self._root_dir is None:
-            raise ValueError("TerminalTool root_dir not set. Call set_root_dir first.")
-
-    @property
-    def root_dir(self) -> Path:
-        return self._root_dir
+    def __init__(self, root_dir: Path, **kwargs):
+        super().__init__(root_dir=root_dir, **kwargs)
 
     def _is_dangerous(self, command: str) -> Optional[str]:
         """检查命令是否在黑名单中，返回拦截原因或None"""
@@ -235,7 +228,6 @@ class TerminalTool(BaseTool):
             return f"错误：命令执行失败 - {str(e)}"
 
 
-def create_terminal_tool(root_dir: Path) -> Type[TerminalTool]:
-    """创建终端工具类"""
-    TerminalTool.set_root_dir(root_dir)
-    return TerminalTool
+def create_terminal_tool(root_dir: Path) -> TerminalTool:
+    """创建终端工具实例"""
+    return TerminalTool(root_dir=root_dir)

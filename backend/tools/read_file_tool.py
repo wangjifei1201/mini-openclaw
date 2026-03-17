@@ -28,23 +28,13 @@ class ReadFileTool(BaseTool):
 注意：路径中包含空格或特殊字符时无需转义，直接传入原始路径即可。"""
     args_schema: Type[BaseModel] = ReadFileInput
 
-    # 类变量
-    _root_dir: Optional[Path] = None
+    root_dir: Path = Field(default=None)
     max_length: int = 10000
 
-    @classmethod
-    def set_root_dir(cls, root_dir: Path):
-        cls._root_dir = root_dir
-
-    def __init__(self, max_length: int = 10000, **kwargs):
+    def __init__(self, root_dir: Path, max_length: int = 10000, **kwargs):
         super().__init__(**kwargs)
-        if self._root_dir is None:
-            raise ValueError("ReadFileTool root_dir not set. Call set_root_dir first.")
+        self.root_dir = root_dir
         self.max_length = max_length
-
-    @property
-    def root_dir(self) -> Path:
-        return self._root_dir
 
     def _normalize_path(self, path: str) -> str:
         """规范化路径，处理 LLM 可能传入的各种格式"""
@@ -121,7 +111,6 @@ class ReadFileTool(BaseTool):
         return self._run(path)
 
 
-def create_read_file_tool(root_dir: Path) -> Type[ReadFileTool]:
-    """创建文件读取工具类"""
-    ReadFileTool.set_root_dir(root_dir)
-    return ReadFileTool
+def create_read_file_tool(root_dir: Path) -> ReadFileTool:
+    """创建文件读取工具实例"""
+    return ReadFileTool(root_dir=root_dir)
