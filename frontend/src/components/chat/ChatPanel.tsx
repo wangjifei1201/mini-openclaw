@@ -21,9 +21,9 @@ export default function ChatPanel() {
         {!currentSessionId ? (
           <div className="h-full flex items-center justify-center text-gray-400">
             <div className="text-center px-4">
-              <div className="text-4xl md:text-6xl mb-4">🤖</div>
-              <div className="text-lg md:text-xl font-medium mb-2">欢迎使用 Mini-OpenClaw</div>
-              <div className="text-sm md:text-base">选择一个会话或创建新对话开始聊天</div>
+              <div className="text-4xl md:text-6xl mb-4">🧠</div>
+              <div className="text-lg md:text-xl font-medium mb-2">欢迎使用 Omin-OpenClaw</div>
+              <div className="text-sm md:text-base">你的 24/7 智能思考助手已上线，选个话题聊聊，或开启全新对话探索</div>
             </div>
           </div>
         ) : messages.length === 0 ? (

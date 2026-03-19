@@ -3,7 +3,7 @@ import { AppProvider } from '@/lib/store'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Mini-OpenClaw',
+  title: 'Omin-OpenClaw',
   description: '轻量级、全透明的 AI Agent 系统',
 }
 

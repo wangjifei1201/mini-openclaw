@@ -17,9 +17,9 @@ export default function Navbar() {
           <Menu size={20} />
         </button>
         <div className="w-8 h-8 bg-klein-blue rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-sm">M</span>
+          <span className="text-white font-bold text-sm">O</span>
         </div>
-        <span className="font-semibold text-lg text-gray-800 hidden sm:block">mini OpenClaw</span>
+        <span className="font-semibold text-lg text-gray-800 hidden sm:block">Omin OpenClaw</span>
         <span className="font-semibold text-base text-gray-800 sm:hidden">OpenClaw</span>
       </div>
       
