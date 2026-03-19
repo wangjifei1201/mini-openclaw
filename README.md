@@ -188,10 +188,13 @@ System Prompt 由以下 6 部分动态拼接：
 
 启用 RAG 模式后，`MEMORY.md` 不再完整注入 System Prompt，而是通过语义检索动态注入相关片段。
 
+### 快速体验地址
+[Omni-OpenClaw](http://82.157.98.72:5004/)
+
 ## 许可证
 
 MIT License
 
 ---
 
-由 [wangjifei]() 提供技术支持
+由 [wangjifei](http://82.157.98.72:5004/) 提供技术支持
