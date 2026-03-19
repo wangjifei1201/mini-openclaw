@@ -25,7 +25,7 @@ export default function Navbar() {
       
       {/* 右侧链接 */}
       <a
-        href="https://fufan.ai"
+        href="https://github.com/wangjifei1201/mini-openclaw"
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-1 text-sm text-gray-600 hover:text-klein-blue transition-colors"
