@@ -11,7 +11,12 @@
 /backend/tools/__pycache__/
 /backend/memory/__pycache__/
 /backend/workspace/__pycache__/
+/backend/workspace/__pycache__/
+/backend/workspace/coordination/responses/
+/backend/workspace/coordination/tasks/
 .env
 /backend/storage/
 backend/.npm/_update-notifier-last-checked
 backend/.npm/_logs/2026-03-17T04_35_25_815Z-debug-0.log
+backend/workspace/coordination/tasks/TASK_1774183355_99fb5cc7.md
+backend/workspace/coordination/tasks/TASK_1774183355_99fb5cc7.md

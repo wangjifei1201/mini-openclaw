@@ -4,7 +4,7 @@
 
 ## 更新时间
 
-2026-03-22 20:42:35
+2026-03-22 20:46:11
 
 ## Agent状态
 
@@ -13,11 +13,11 @@
 | primary_agent | primary | running | - |
 | coordinator_agent | coordinator | running | - |
 | data_agent | domain | idle | - |
-| doc_agent | domain | busy | TASK_1774183355_99fb5cc7 |
+| doc_agent | domain | idle | None |
 
 ## 任务队列
 
-- [processing] TASK_1774183355_99fb5cc7 -> doc_agent
+当前无活跃任务。
 
 ## 协同日志
 
