@@ -1,7 +1,15 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
-import { streamChat, getSessions, createSession, deleteSession, getSessionHistory, compressSession, getRAGMode, setRAGMode } from './api'
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
+import { 
+  streamChat, getSessions, createSession, deleteSession, getSessionHistory, 
+  compressSession, getRAGMode, setRAGMode, getMultiAgentMode, setMultiAgentMode,
+} from './api'
+import type { StrategyAnalysis } from './api'
+import { type TaskPanelData } from '@/components/task/TaskPanel'
+import { type TodoItem } from '@/components/task/TodoList'
+import { type SubTaskData } from '@/components/task/SubTaskCard'
+import { type TaskStatsData } from '@/components/task/TaskStats'
 
 // 类型定义
 export interface ToolCall {
@@ -31,6 +39,14 @@ export interface Attachment {
   type: 'image' | 'document'
 }
 
+export interface AgentExecution {
+  agent_name: string
+  task_type: string
+  status: 'pending' | 'processing' | 'finished' | 'failed'
+  start_time?: number
+  end_time?: number
+}
+
 export interface Message {
   id: string
   role: 'user' | 'assistant' | 'system'
@@ -39,6 +55,9 @@ export interface Message {
   retrievals?: RetrievalResult[]
   isStreaming?: boolean
   attachments?: Attachment[]
+  strategy?: StrategyAnalysis
+  agentExecutions?: AgentExecution[]
+  activeAgent?: string
 }
 
 export interface Session {
@@ -62,11 +81,19 @@ interface AppContextType {
   isStreaming: boolean
   isCompressing: boolean
   ragMode: boolean
+  multiAgentMode: boolean
   isMobileSidebarOpen: boolean
+  taskPanelWidth: number
+  
+  // 主题状态
+  theme: 'light' | 'dark'
   
   // 编辑器状态
   currentFile: string | null
   fileContent: string
+  
+  // 任务状态
+  currentTask: TaskPanelData | null
   
   // 操作方法
   loadSessions: () => Promise<void>
@@ -80,7 +107,12 @@ interface AppContextType {
   setFileContent: (content: string) => void
   compress: () => Promise<void>
   toggleRAGMode: () => Promise<void>
+  toggleMultiAgentMode: () => Promise<void>
   setIsMobileSidebarOpen: (open: boolean) => void
+  setTaskPanelWidth: (width: number) => void
+  clearCurrentTask: () => void
+  toggleTheme: () => void
+  stopStreaming: () => void
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -97,11 +129,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isStreaming, setIsStreaming] = useState(false)
   const [isCompressing, setIsCompressing] = useState(false)
   const [ragMode, setRagModeState] = useState(false)
+  const [multiAgentMode, setMultiAgentModeState] = useState(true)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  
+  // 主题状态
+  const [theme, setThemeState] = useState<'light' | 'dark'>('light')
   
   // 编辑器状态
   const [currentFile, setCurrentFile] = useState<string | null>(null)
   const [fileContent, setFileContent] = useState('')
+  
+  // 任务状态
+  const [currentTask, setCurrentTask] = useState<TaskPanelData | null>(null)
+  const [taskPanelWidth, setTaskPanelWidth] = useState(320)
+  
+  // AbortController ref for stopping streaming
+  const abortControllerRef = useRef<AbortController | null>(null)
+  
+  // 清除当前任务
+  const clearCurrentTask = useCallback(() => {
+    setCurrentTask(null)
+  }, [])
+  
+  // 切换主题
+  const toggleTheme = useCallback(() => {
+    setThemeState(prev => {
+      const newTheme = prev === 'light' ? 'dark' : 'light'
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('theme', newTheme)
+        document.documentElement.classList.toggle('dark', newTheme === 'dark')
+      }
+      return newTheme
+    })
+  }, [])
+  
+  // 停止流式生成
+  const stopStreaming = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+  }, [])
   
   // 加载会话列表
   const loadSessions = useCallback(async () => {
@@ -160,7 +228,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // 发送消息
   const sendMessage = useCallback(async (content: string, attachments?: Attachment[]) => {
     if (!currentSessionId || isStreaming) return
-    
+
     // 添加用户消息
     const userMsgId = `${currentSessionId}-${Date.now()}-user`
     const userMessage: Message = {
@@ -169,7 +237,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       content,
       attachments,
     }
-    
+
     // 添加助手消息占位
     const assistantMsgId = `${currentSessionId}-${Date.now()}-assistant`
     const assistantMessage: Message = {
@@ -178,9 +246,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       content: '',
       isStreaming: true,
     }
-    
+
     setMessages(prev => [...prev, userMessage, assistantMessage])
     setIsStreaming(true)
+    
+    // 创建 AbortController
+    const controller = new AbortController()
+    abortControllerRef.current = controller
     
     try {
       let currentContent = ''
@@ -200,6 +272,117 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const { type, ...data } = event
         
         switch (type) {
+          // ============ 多Agent专属事件 ============
+
+          case 'strategy_decided':
+            // 从SSE事件更新消息的策略信息
+            setMessages(prev => prev.map(msg =>
+              msg.id === assistantMsgId
+                ? { ...msg, strategy: data as StrategyAnalysis }
+                : msg
+            ))
+            break
+
+          case 'task_created':
+            // 从SSE事件构建 TaskPanelData
+            setCurrentTask({
+              taskId: data.task_id,
+              message: data.message || content,
+              status: 'processing',
+              stats: {
+                llmCallCount: 0,
+                inputTokens: 0,
+                outputTokens: 0,
+                totalTokens: 0,
+                toolCallCount: 0,
+                startTime: Date.now(),
+                elapsedTime: 0,
+                completedSubTasks: 0,
+                totalSubTasks: (data.todos || []).length,
+              },
+              todos: (data.todos || []).map((t: any) => ({
+                id: t.id,
+                content: t.content,
+                status: t.status as 'pending' | 'in_progress' | 'completed' | 'failed',
+                agent: t.agent,
+              })),
+              subtasks: [],
+              agentStatus: data.agent_status || {
+                primary_agent: 'idle',
+                coordinator_agent: 'processing',
+                data_agent: 'idle',
+                doc_agent: 'idle',
+              },
+            })
+            break
+
+          case 'todo_update':
+            setCurrentTask(prev => {
+              if (!prev) return null
+              const completedCount = prev.todos.filter(t => 
+                t.id === data.todo_id 
+                  ? data.new_status === 'completed'
+                  : t.status === 'completed'
+              ).length
+              return {
+                ...prev,
+                todos: prev.todos.map(t =>
+                  t.id === data.todo_id
+                    ? { ...t, status: data.new_status, result: data.result }
+                    : t
+                ),
+                stats: {
+                  ...prev.stats,
+                  completedSubTasks: completedCount,
+                },
+              }
+            })
+            break
+
+          case 'agent_status':
+            setCurrentTask(prev => prev ? {
+              ...prev,
+              agentStatus: { ...prev.agentStatus, [data.agent_name]: data.new_status },
+            } : null)
+            break
+
+          case 'stats_update':
+            setCurrentTask(prev => prev ? {
+              ...prev,
+              stats: {
+                ...prev.stats,
+                llmCallCount: data.llmCallCount ?? data.llm_call_count ?? prev.stats.llmCallCount,
+                inputTokens: data.inputTokens ?? data.input_tokens ?? prev.stats.inputTokens,
+                outputTokens: data.outputTokens ?? data.output_tokens ?? prev.stats.outputTokens,
+                totalTokens: (data.inputTokens ?? data.input_tokens ?? prev.stats.inputTokens) + (data.outputTokens ?? data.output_tokens ?? prev.stats.outputTokens),
+                toolCallCount: data.toolCallCount ?? data.tool_call_count ?? prev.stats.toolCallCount,
+                elapsedTime: data.elapsedTime ?? data.elapsed_time ?? prev.stats.elapsedTime,
+              },
+            } : null)
+            break
+
+          case 'task_complete':
+            setCurrentTask(prev => {
+              if (!prev) return null
+              const finalStats = data.final_stats
+              return {
+                ...prev,
+                status: 'completed',
+                stats: finalStats ? {
+                  ...prev.stats,
+                  llmCallCount: finalStats.llmCallCount ?? finalStats.llm_call_count ?? prev.stats.llmCallCount,
+                  inputTokens: finalStats.inputTokens ?? finalStats.input_tokens ?? prev.stats.inputTokens,
+                  outputTokens: finalStats.outputTokens ?? finalStats.output_tokens ?? prev.stats.outputTokens,
+                  totalTokens: (finalStats.inputTokens ?? finalStats.input_tokens ?? prev.stats.inputTokens) + (finalStats.outputTokens ?? finalStats.output_tokens ?? prev.stats.outputTokens),
+                  toolCallCount: finalStats.toolCallCount ?? finalStats.tool_call_count ?? prev.stats.toolCallCount,
+                  elapsedTime: finalStats.elapsedTime ?? finalStats.elapsed_time ?? prev.stats.elapsedTime,
+                } : prev.stats,
+              }
+            })
+            break
+
+          // ============ 原有事件（增强兼容多Agent） ============
+
           case 'retrieval':
             currentRetrievals = data.results || []
             setMessages(prev => prev.map(msg => 
@@ -213,7 +396,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             currentContent += data.content || ''
             setMessages(prev => prev.map(msg =>
               msg.id === assistantMsgId
-                ? { ...msg, content: currentContent }
+                ? { ...msg, content: currentContent, activeAgent: data.agent_name || undefined }
                 : msg
             ))
             break
@@ -280,15 +463,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
             console.error('流式响应错误:', data.error)
             setMessages(prev => prev.map(msg =>
               msg.id === assistantMsgId
-                ? { ...msg, content: `错误: ${data.error}`, isStreaming: false }
+                ? { ...msg, content: currentContent + `\n\n错误: ${data.error}`, isStreaming: false }
                 : msg
             ))
             break
         }
-      })
+      }, controller.signal)
     } catch (error) {
-      console.error('发送消息失败:', error)
+      // 用户主动停止生成 - 优雅处理
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setMessages(prev => prev.map(msg =>
+          msg.id === assistantMsgId
+            ? { ...msg, isStreaming: false }
+            : msg
+        ))
+      } else {
+        console.error('发送消息失败:', error)
+      }
     } finally {
+      abortControllerRef.current = null
       setIsStreaming(false)
     }
   }, [currentSessionId, isStreaming, loadSessions])
@@ -319,10 +512,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [ragMode])
   
+  // 切换多Agent模式
+  const toggleMultiAgentMode = useCallback(async () => {
+    try {
+      const newMode = !multiAgentMode
+      await setMultiAgentMode(newMode)
+      setMultiAgentModeState(newMode)
+    } catch (error) {
+      console.error('切换多Agent模式失败:', error)
+    }
+  }, [multiAgentMode])
+  
   // 初始化加载
   useEffect(() => {
     loadSessions()
     getRAGMode().then(data => setRagModeState(data.enabled)).catch(console.error)
+    getMultiAgentMode().then(data => setMultiAgentModeState(data.enabled)).catch(console.error)
+    
+    // 初始化主题
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme') as 'light' | 'dark' | null
+      const initial = saved || 'light'
+      setThemeState(initial)
+      document.documentElement.classList.toggle('dark', initial === 'dark')
+    }
   }, [loadSessions])
   
   const value: AppContextType = {
@@ -334,9 +547,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isStreaming,
     isCompressing,
     ragMode,
+    multiAgentMode,
     isMobileSidebarOpen,
+    taskPanelWidth,
+    theme,
     currentFile,
     fileContent,
+    currentTask,
     loadSessions,
     selectSession,
     newSession,
@@ -348,7 +565,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setFileContent,
     compress,
     toggleRAGMode,
+    toggleMultiAgentMode,
     setIsMobileSidebarOpen,
+    setTaskPanelWidth,
+    clearCurrentTask,
+    toggleTheme,
+    stopStreaming,
   }
   
   return (

@@ -20,6 +20,7 @@ CONFIG_FILE = BASE_DIR / "config.json"
 # 默认配置
 DEFAULT_CONFIG = {
     "rag_mode": False,
+    "multi_agent_mode": True,  # 默认开启多Agent模式
 }
 
 
@@ -52,6 +53,19 @@ def set_rag_mode(enabled: bool) -> None:
     """设置 RAG 模式状态"""
     config = load_config()
     config["rag_mode"] = enabled
+    save_config(config)
+
+
+def get_multi_agent_mode() -> bool:
+    """获取多Agent模式状态"""
+    config = load_config()
+    return config.get("multi_agent_mode", True)
+
+
+def set_multi_agent_mode(enabled: bool) -> None:
+    """设置多Agent模式状态"""
+    config = load_config()
+    config["multi_agent_mode"] = enabled
     save_config(config)
 
 

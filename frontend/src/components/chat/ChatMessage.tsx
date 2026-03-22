@@ -9,6 +9,7 @@ import { User, Bot, FileText, Image as ImageIcon } from 'lucide-react'
 import { Message } from '@/lib/store'
 import ThoughtChain from './ThoughtChain'
 import RetrievalCard from './RetrievalCard'
+import StrategyIndicator from './StrategyIndicator'
 
 interface ChatMessageProps {
   message: Message
@@ -69,16 +70,22 @@ export default function ChatMessage({ message }: ChatMessageProps) {
   
   return (
     <div className={`flex gap-2 md:gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
-      {/* 头像 */}
-      <div
-        className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-          isUser ? 'bg-vibrant-orange' : 'bg-klein-blue'
-        }`}
-      >
-        {isUser ? (
-          <User size={14} className="md:w-4 md:h-4" />
-        ) : (
-          <Bot size={14} className="md:w-4 md:h-4" />
+      {/* 头像和策略指示器 */}
+      <div className="flex-shrink-0 flex flex-col items-center gap-1">
+        <div
+          className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center ${
+            isUser ? 'bg-vibrant-orange' : 'bg-klein-blue'
+          }`}
+        >
+          {isUser ? (
+            <User size={14} className="md:w-4 md:h-4" />
+          ) : (
+            <Bot size={14} className="md:w-4 md:h-4" />
+          )}
+        </div>
+        {/* 策略指示器 - 仅在助手消息且存在策略信息时显示 */}
+        {!isUser && message.strategy && (
+          <StrategyIndicator strategy={message.strategy} compact />
         )}
       </div>
       
@@ -96,7 +103,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
               <div
                 key={`${att.path}-${index}`}
                 className={`inline-flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-xs md:text-sm ${
-                  isUser ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                  isUser ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-gray-200'
                 }`}
               >
                 {att.type === 'image' ? (
@@ -127,7 +134,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
           className={`inline-block p-2 md:p-3 rounded-2xl text-sm md:text-base ${
             isUser
               ? 'bg-klein-blue text-white rounded-tr-sm'
-              : 'bg-white shadow-sm rounded-tl-sm'
+              : 'bg-white dark:bg-slate-800 shadow-sm dark:shadow-slate-900/20 rounded-tl-sm'
           }`}
         >
           {message.isStreaming && !message.content ? (
@@ -137,7 +144,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
               <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-200" />
             </div>
           ) : (
-            <div className={`markdown-content ${isUser ? 'text-white' : 'text-gray-800'}`}>
+            <div className={`markdown-content ${isUser ? 'text-white' : 'text-gray-800 dark:text-gray-200'}`}>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
@@ -159,7 +166,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                     if (isInline) {
                       return (
                         <code
-                          className={`${isUser ? 'bg-blue-700' : 'bg-gray-100'} px-1 rounded`}
+                          className={`${isUser ? 'bg-blue-700' : 'bg-gray-100 dark:bg-slate-700'} px-1 rounded`}
                           {...props}
                         >
                           {children}
@@ -194,7 +201,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                     return (
                       <a
                         {...props}
-                        className={`underline ${isUser ? 'text-blue-200' : 'text-klein-blue'}`}
+                        className={`underline ${isUser ? 'text-blue-200' : 'text-klein-blue dark:text-blue-400'}`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >

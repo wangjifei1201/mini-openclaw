@@ -9,11 +9,11 @@ import { readFile, saveFile, getFilesTokens } from '@/lib/api'
 // 动态导入 Monaco Editor（避免 SSR 问题）
 const MonacoEditor = dynamic(
   () => import('@monaco-editor/react'),
-  { ssr: false, loading: () => <div className="h-full flex items-center justify-center text-gray-400">加载编辑器...</div> }
+  { ssr: false, loading: () => <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500">加载编辑器...</div> }
 )
 
 export default function InspectorPanel() {
-  const { currentFile, setCurrentFile, fileContent, setFileContent } = useApp()
+  const { currentFile, setCurrentFile, fileContent, setFileContent, theme } = useApp()
   const [isSaving, setIsSaving] = useState(false)
   const [tokenCount, setTokenCount] = useState(0)
   const [hasChanges, setHasChanges] = useState(false)
@@ -88,7 +88,7 @@ export default function InspectorPanel() {
   
   if (!currentFile) {
     return (
-      <div className="h-full flex items-center justify-center bg-white text-gray-400">
+      <div className="h-full flex items-center justify-center bg-white dark:bg-slate-800 text-gray-400 dark:text-gray-500">
         <div className="text-center">
           <FileText size={48} className="mx-auto mb-4 opacity-50" />
           <div className="text-sm">选择一个文件进行编辑</div>
@@ -98,12 +98,12 @@ export default function InspectorPanel() {
   }
   
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-white dark:bg-slate-800">
       {/* 头部 */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-apple-border">
         <div className="flex items-center gap-2 min-w-0">
-          <FileText size={16} className="text-gray-400 flex-shrink-0" />
-          <span className="text-sm text-gray-700 truncate">{currentFile}</span>
+          <FileText size={16} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
+          <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{currentFile}</span>
           {hasChanges && (
             <span className="w-2 h-2 bg-vibrant-orange rounded-full flex-shrink-0" title="未保存的更改" />
           )}
@@ -119,7 +119,7 @@ export default function InspectorPanel() {
           </button>
           <button
             onClick={() => setCurrentFile(null)}
-            className="p-1 text-gray-400 hover:text-gray-600"
+            className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
           >
             <X size={18} />
           </button>
@@ -131,7 +131,7 @@ export default function InspectorPanel() {
         <MonacoEditor
           height="100%"
           defaultLanguage="markdown"
-          theme="vs"
+          theme={theme === 'dark' ? 'vs-dark' : 'vs'}
           value={fileContent}
           onChange={(value) => setFileContent(value || '')}
           options={{
@@ -147,7 +147,7 @@ export default function InspectorPanel() {
       </div>
       
       {/* 底部状态栏 */}
-      <div className="px-4 py-2 border-t border-apple-border flex items-center justify-between text-xs text-gray-400">
+      <div className="px-4 py-2 border-t border-apple-border flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
         <span>Markdown</span>
         <span>{tokenCount.toLocaleString()} tokens</span>
       </div>

@@ -13,12 +13,16 @@ import {
   Settings,
   User,
   BookOpen,
-  Shield
+  Shield,
+  Bot,
+  Users
 } from 'lucide-react'
 import { useApp } from '@/lib/store'
 import { getSessionTokens, getSkills } from '@/lib/api'
+import AgentsPanel from '@/components/agents/AgentsPanel'
+import CoordinationPanel from '@/components/coordination/CoordinationPanel'
 
-type TabType = 'chat' | 'memory' | 'skills'
+type TabType = 'chat' | 'memory' | 'skills' | 'agents'
 
 interface Skill {
   name: string
@@ -35,8 +39,10 @@ export default function Sidebar() {
     removeSession,
     isCompressing,
     ragMode,
+    multiAgentMode,
     compress,
     toggleRAGMode,
+    toggleMultiAgentMode,
     isMobileSidebarOpen,
     setIsMobileSidebarOpen,
   } = useApp()
@@ -88,12 +94,12 @@ export default function Sidebar() {
   }
   
   return (
-    <div className="h-full flex flex-col bg-white border-r border-apple-border md:w-auto w-80">
+    <div className="h-full flex flex-col bg-white dark:bg-slate-800 border-r border-apple-border w-full overflow-hidden">
       {/* 移动端关闭按钮 */}
       <div className="md:hidden p-3 border-b border-apple-border">
         <button
           onClick={() => setIsMobileSidebarOpen(false)}
-          className="text-gray-500 hover:text-gray-700 text-sm"
+          className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 text-sm"
         >
           ✕ 关闭
         </button>
@@ -105,7 +111,7 @@ export default function Sidebar() {
           className={`flex-1 py-3 text-sm font-medium transition-colors ${
             activeTab === 'chat'
               ? 'text-klein-blue border-b-2 border-klein-blue'
-              : 'text-gray-500 hover:text-gray-700'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
           <MessageSquare size={16} className="inline mr-1" />
@@ -116,7 +122,7 @@ export default function Sidebar() {
           className={`flex-1 py-3 text-sm font-medium transition-colors ${
             activeTab === 'memory'
               ? 'text-klein-blue border-b-2 border-klein-blue'
-              : 'text-gray-500 hover:text-gray-700'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
           <Brain size={16} className="inline mr-1" />
@@ -127,11 +133,22 @@ export default function Sidebar() {
           className={`flex-1 py-3 text-sm font-medium transition-colors ${
             activeTab === 'skills'
               ? 'text-klein-blue border-b-2 border-klein-blue'
-              : 'text-gray-500 hover:text-gray-700'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
           <Sparkles size={16} className="inline mr-1" />
           技能
+        </button>
+        <button
+          onClick={() => setActiveTab('agents')}
+          className={`flex-1 py-3 text-sm font-medium transition-colors ${
+            activeTab === 'agents'
+              ? 'text-klein-blue border-b-2 border-klein-blue'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          <Bot size={16} className="inline mr-1" />
+          Agents
         </button>
       </div>
       
@@ -156,15 +173,15 @@ export default function Sidebar() {
                   onClick={() => selectSession(session.id)}
                   className={`group flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
                     currentSessionId === session.id
-                      ? 'bg-blue-50 border border-blue-200'
-                      : 'hover:bg-gray-50'
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                      : 'hover:bg-gray-50 dark:hover:bg-slate-700'
                   }`}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-800 truncate">
+                    <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
                       {session.title}
                     </div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-xs text-gray-400 dark:text-gray-500">
                       {session.message_count} 条消息
                     </div>
                   </div>
@@ -178,7 +195,7 @@ export default function Sidebar() {
               ))}
               
               {sessions.length === 0 && (
-                <div className="text-center text-gray-400 py-8 text-sm">
+                <div className="text-center text-gray-400 dark:text-gray-500 py-8 text-sm">
                   暂无会话，点击上方按钮开始
                 </div>
               )}
@@ -189,7 +206,7 @@ export default function Sidebar() {
         {activeTab === 'memory' && (
           <div className="p-3">
             {/* System Prompt 区域 */}
-            <div className="text-sm text-gray-500 mb-2 flex items-center gap-1">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
               <Settings size={13} />
               System Prompt
             </div>
@@ -221,7 +238,7 @@ export default function Sidebar() {
             </div>
 
             {/* 记忆文件区域 */}
-            <div className="text-sm text-gray-500 mb-2 flex items-center gap-1">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
               <Brain size={13} />
               记忆文件
             </div>
@@ -234,11 +251,11 @@ export default function Sidebar() {
         
         {activeTab === 'skills' && (
           <div className="p-3">
-            <div className="text-sm text-gray-500 mb-3">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-3">
               可用技能列表 ({skills.length})
             </div>
             {skillsLoading ? (
-              <div className="text-center text-gray-400 py-4 text-sm">
+              <div className="text-center text-gray-400 dark:text-gray-500 py-4 text-sm">
                 加载中...
               </div>
             ) : (
@@ -252,10 +269,21 @@ export default function Sidebar() {
                   />
                 ))}
                 {skills.length === 0 && (
-                  <div className="text-center text-gray-400 py-4 text-sm">
+                  <div className="text-center text-gray-400 dark:text-gray-500 py-4 text-sm">
                     暂无可用技能
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+        
+        {activeTab === 'agents' && (
+          <div className="space-y-0">
+            <AgentsPanel />
+            {multiAgentMode && (
+              <div className="border-t border-apple-border">
+                <CoordinationPanel />
               </div>
             )}
           </div>
@@ -264,16 +292,36 @@ export default function Sidebar() {
       
       {/* 底部工具栏 */}
       <div className="border-t border-apple-border p-3 space-y-2">
+        {/* 多Agent模式开关 */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <Users size={14} />
+            多Agent模式
+          </div>
+          <button
+            onClick={toggleMultiAgentMode}
+            className={`w-10 h-5 rounded-full transition-colors relative ${
+              multiAgentMode ? 'bg-purple-500' : 'bg-gray-300 dark:bg-slate-600'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                multiAgentMode ? 'left-5' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
+        
         {/* RAG 模式开关 */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
             <Database size={14} />
             RAG 模式
           </div>
           <button
             onClick={toggleRAGMode}
             className={`w-10 h-5 rounded-full transition-colors relative ${
-              ragMode ? 'bg-klein-blue' : 'bg-gray-300'
+              ragMode ? 'bg-klein-blue' : 'bg-gray-300 dark:bg-slate-600'
             }`}
           >
             <span
@@ -288,18 +336,18 @@ export default function Sidebar() {
         <button
           onClick={handleCompress}
           disabled={!currentSessionId || isCompressing}
-          className="w-full flex items-center justify-center gap-2 py-2 px-4 text-sm text-gray-600 border border-apple-border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-2 py-2 px-4 text-sm text-gray-600 dark:text-gray-300 border border-apple-border rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Wrench size={14} />
           {isCompressing ? '压缩中...' : '压缩对话'}
         </button>
         
         {/* Token 统计 */}
-        <div className="text-xs text-gray-400 text-center">
+        <div className="text-xs text-gray-400 dark:text-gray-500 text-center">
           Token: {tokenInfo.total.toLocaleString()} 
-          <span className="text-gray-300 mx-1">|</span>
+          <span className="text-gray-300 dark:text-gray-600 mx-1">|</span>
           系统: {tokenInfo.system.toLocaleString()}
-          <span className="text-gray-300 mx-1">|</span>
+          <span className="text-gray-300 dark:text-gray-600 mx-1">|</span>
           消息: {tokenInfo.message.toLocaleString()}
         </div>
       </div>
@@ -314,9 +362,9 @@ function FileItem({ path, label }: { path: string; label: string }) {
   return (
     <button
       onClick={() => setCurrentFile(path)}
-      className="w-full flex items-center gap-2 p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-left"
+      className="w-full flex items-center gap-2 p-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
     >
-      <FileText size={14} className="text-gray-400" />
+      <FileText size={14} className="text-gray-400 dark:text-gray-500" />
       {label}
     </button>
   )
@@ -329,13 +377,13 @@ function PromptFileItem({ path, label, desc, icon }: { path: string; label: stri
   return (
     <button
       onClick={() => setCurrentFile(path)}
-      className="w-full flex flex-col gap-0.5 p-2 text-left hover:bg-blue-50 rounded-lg transition-colors"
+      className="w-full flex flex-col gap-0.5 p-2 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
     >
       <div className="flex items-center gap-2">
         {icon}
-        <span className="text-sm font-medium text-gray-700">{label}</span>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{label}</span>
       </div>
-      <div className="text-xs text-gray-400 ml-5">{desc}</div>
+      <div className="text-xs text-gray-400 dark:text-gray-500 ml-5">{desc}</div>
     </button>
   )
 }
@@ -350,13 +398,13 @@ function SkillItem({ name, description, location }: { name: string; description:
   return (
     <button
       onClick={() => setCurrentFile(filePath)}
-      className="w-full flex flex-col gap-1 p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
+      className="w-full flex flex-col gap-1 p-2 text-left hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
     >
       <div className="flex items-center gap-2">
         <Sparkles size={14} className="text-vibrant-orange flex-shrink-0" />
-        <span className="text-sm font-medium text-gray-700 truncate">{name}</span>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{name}</span>
       </div>
-      <div className="text-xs text-gray-400 line-clamp-2 ml-5">
+      <div className="text-xs text-gray-400 dark:text-gray-500 line-clamp-2 ml-5">
         {description}
       </div>
     </button>

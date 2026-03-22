@@ -4,8 +4,8 @@ FastAPI 应用，端口 8002
 """
 import os
 import sys
-from pathlib import Path
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,53 +15,63 @@ from fastapi.staticfiles import StaticFiles
 BASE_DIR = Path(__file__).parent.absolute()
 sys.path.insert(0, str(BASE_DIR))
 
-from config import settings
-from tools.skills_scanner import scan_and_save_skills
-from graph import agent_manager
 from api import (
+    agents_router,
     chat_router,
-    sessions_router,
-    files_router,
-    tokens_router,
     compress_router,
     config_router,
+    coordination_router,
+    files_router,
+    sessions_router,
     skills_router,
+    strategy_router,
+    task_router,
+    tokens_router,
 )
+from config import settings
+from graph import agent_manager
+from graph.coordinator import get_coordination_manager, init_coordination_manager
+from graph.llm_task_planner import init_task_planner
+from graph.task_dispatcher import init_task_dispatcher
+from tools.skills_scanner import scan_and_save_skills
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     应用生命周期管理
-    
-    启动时执行三步初始化：
+
+    启动时执行六步初始化：
     1. scan_skills() → 扫描 skills/**/SKILL.md，生成 SKILLS_SNAPSHOT.md
     2. agent_manager.initialize() → 创建 LLM 实例，注册工具
     3. memory_indexer.rebuild_index() → 构建 MEMORY.md 向量索引
+    4. init_coordination_manager() → 初始化多Agent协同管理器
+    5. init_task_dispatcher() → 初始化任务分发器
+    6. init_task_planner() → 初始化LLM任务规划器
     """
     print("=" * 50)
     print("Mini-OpenClaw 启动中...")
     print("=" * 50)
-    
+
     # 1. 扫描技能
-    print("[1/3] 扫描技能目录...")
+    print("[1/6] 扫描技能目录...")
     try:
         snapshot = scan_and_save_skills(BASE_DIR)
         print(f"      已生成 SKILLS_SNAPSHOT.md")
     except Exception as e:
         print(f"      技能扫描失败: {e}")
-    
+
     # 2. 初始化 Agent 管理器
-    print("[2/3] 初始化 Agent 引擎...")
+    print("[2/6] 初始化 Agent 引擎...")
     try:
         agent_manager.initialize(BASE_DIR)
         print(f"      LLM: {settings.OPENAI_CHAT_MODEL}")
         print(f"      工具数: {len(agent_manager.tools)}")
     except Exception as e:
         print(f"      Agent 初始化失败: {e}")
-    
+
     # 3. 构建记忆索引
-    print("[3/3] 构建记忆索引...")
+    print("[3/6] 构建记忆索引...")
     try:
         if agent_manager.memory_indexer.rebuild_index():
             print("      MEMORY.md 索引已构建")
@@ -69,13 +79,38 @@ async def lifespan(app: FastAPI):
             print("      MEMORY.md 为空或不存在，跳过索引构建")
     except Exception as e:
         print(f"      索引构建失败: {e}")
-    
+
+    # 4. 初始化协同管理器
+    print("[4/6] 初始化多Agent协同管理器...")
+    try:
+        init_coordination_manager(BASE_DIR)
+        print("      多Agent协同系统已就绪")
+    except Exception as e:
+        print(f"      协同管理器初始化失败: {e}")
+
+    # 5. 初始化任务分发器
+    print("[5/6] 初始化任务分发器...")
+    try:
+        init_task_dispatcher(BASE_DIR, agent_manager.llm)
+        print("      任务分发器已就绪")
+    except Exception as e:
+        print(f"      任务分发器初始化失败: {e}")
+
+    # 6. 初始化LLM任务规划器
+    print("[6/6] 初始化LLM任务规划器...")
+    try:
+        coordinator = get_coordination_manager()
+        init_task_planner(agent_manager.llm, coordinator, BASE_DIR)
+        print("      LLM任务规划器已就绪")
+    except Exception as e:
+        print(f"      LLM任务规划器初始化失败: {e}")
+
     print("=" * 50)
     print(f"Mini-OpenClaw 已启动: http://localhost:8002")
     print("=" * 50)
-    
+
     yield
-    
+
     # 关闭时清理
     print("Mini-OpenClaw 已关闭")
 
@@ -105,6 +140,10 @@ app.include_router(tokens_router, prefix="/api", tags=["Tokens"])
 app.include_router(compress_router, prefix="/api", tags=["Compress"])
 app.include_router(config_router, prefix="/api", tags=["Config"])
 app.include_router(skills_router, prefix="/api", tags=["Skills"])
+app.include_router(agents_router, prefix="/api", tags=["Agents"])
+app.include_router(coordination_router, prefix="/api", tags=["Coordination"])
+app.include_router(strategy_router, prefix="/api", tags=["Strategy"])
+app.include_router(task_router, prefix="/api", tags=["Task"])
 
 # 挂载静态文件目录 - outputs 文件夹可直接访问
 outputs_dir = BASE_DIR / "outputs"
@@ -131,6 +170,7 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "app:app",
         host="0.0.0.0",

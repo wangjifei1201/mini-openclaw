@@ -7,6 +7,7 @@ import Sidebar from '@/components/layout/Sidebar'
 import ResizeHandle from '@/components/layout/ResizeHandle'
 import ChatPanel from '@/components/chat/ChatPanel'
 import InspectorPanel from '@/components/editor/InspectorPanel'
+import TaskPanel from '@/components/task/TaskPanel'
 
 export default function Home() {
   const {
@@ -14,20 +15,34 @@ export default function Home() {
     setSidebarWidth,
     inspectorWidth,
     setInspectorWidth,
+    taskPanelWidth,
+    setTaskPanelWidth,
     currentFile,
     isMobileSidebarOpen,
     setIsMobileSidebarOpen,
+    multiAgentMode,
+    currentTask,
+    clearCurrentTask,
   } = useApp()
   
-  // 处理左侧边栏拖拽
+  // 处理左侧边栏拖拽 - 最小200px，最大半屏
   const handleSidebarResize = useCallback((delta: number) => {
-    setSidebarWidth(Math.max(200, Math.min(400, sidebarWidth + delta)))
+    const maxWidth = typeof window !== 'undefined' ? Math.floor(window.innerWidth / 2) : 600
+    setSidebarWidth(Math.max(200, Math.min(maxWidth, sidebarWidth + delta)))
   }, [sidebarWidth, setSidebarWidth])
   
   // 处理右侧检查器拖拽
   const handleInspectorResize = useCallback((delta: number) => {
     setInspectorWidth(Math.max(300, Math.min(600, inspectorWidth + delta)))
   }, [inspectorWidth, setInspectorWidth])
+  
+  // 处理任务面板拖拽
+  const handleTaskPanelResize = useCallback((delta: number) => {
+    setTaskPanelWidth(Math.max(280, Math.min(500, taskPanelWidth + delta)))
+  }, [taskPanelWidth, setTaskPanelWidth])
+  
+  // 是否显示任务面板：多Agent模式开启且有任务
+  const showTaskPanel = multiAgentMode && currentTask
   
   return (
     <div className="h-screen flex flex-col">
@@ -39,7 +54,7 @@ export default function Home() {
         {/* 移动端侧边栏遮罩 */}
         {isMobileSidebarOpen && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
             onClick={() => setIsMobileSidebarOpen(false)}
           />
         )}
@@ -47,8 +62,8 @@ export default function Home() {
         {/* 左侧边栏 - 桌面版固定，移动版overlay */}
         <div
           className={`${
-            isMobileSidebarOpen ? 'fixed left-0 top-14 z-50' : 'hidden'
-          } md:block md:relative md:top-0`}
+            isMobileSidebarOpen ? 'fixed left-0 top-14 bottom-0 z-50' : 'hidden'
+          } md:block md:relative md:top-0 h-full flex-shrink-0`}
           style={{ width: sidebarWidth }}
         >
           <Sidebar />
@@ -64,8 +79,18 @@ export default function Home() {
           <ChatPanel />
         </div>
         
+        {/* 右侧任务面板（多Agent模式） */}
+        {showTaskPanel && (
+          <>
+            <ResizeHandle onResize={handleTaskPanelResize} direction="left" />
+            <div style={{ width: taskPanelWidth }} className="flex-shrink-0">
+              <TaskPanel task={currentTask} onClose={clearCurrentTask} />
+            </div>
+          </>
+        )}
+        
         {/* 右侧检查器（有文件时显示） */}
-        {currentFile && (
+        {currentFile && !showTaskPanel && (
           <>
             <ResizeHandle onResize={handleInspectorResize} direction="left" />
             <div style={{ width: inspectorWidth }} className="flex-shrink-0">
