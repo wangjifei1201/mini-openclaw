@@ -4,9 +4,22 @@
 
 ## 特性
 
+### 核心特性
 - **文件即记忆 (File-first Memory)**：所有记忆以人类可读的 Markdown 文件形式存在
 - **技能即插件 (Skills as Plugins)**：通过 SKILL.md 文件定义技能，拖入即用
 - **透明可控**：所有操作过程对开发者完全透明
+
+### 多 Agent 协同
+- **智能任务分发**：基于 LLM 的策略选择器，自动判断单 Agent 或多 Agent 协同执行
+- **领域专家 Agent**：支持数据分析师、文档分析师等专业 Agent，根据任务类型智能分发
+- **任务复杂度分析**：自动识别多步骤、跨领域任务，协调多个 Agent 协同工作
+- **执行策略可视化**：前端实时展示当前使用的执行策略（单 Agent / 多 Agent）
+
+### 前端交互体验
+- **流式对话控制**：支持实时停止正在进行的流式对话
+- **主题切换**：支持亮色/暗色双主题模式，界面元素保持一致性
+- **实时思维链展示**：展示 Agent 的思考过程、工具调用、检索结果等中间状态
+- **在线代码编辑器**：集成 Monaco Editor，直接编辑 Memory/Skill 文件
 
 ## 技术栈
 
@@ -16,8 +29,11 @@
 | Agent 引擎 | LangChain 1.x | create_tool_calling_agent |
 | LLM | DeepSeek | 通过 langchain-deepseek 接入 |
 | RAG | LlamaIndex Core | 向量检索 + BM25 混合搜索 |
+| 策略选择器 | LLM-driven Dispatch | 智能判断单/多 Agent 执行策略 |
 | 前端框架 | Next.js 14 | App Router + TypeScript |
-| UI | Tailwind CSS | Apple 风格毛玻璃效果 |
+| UI 框架 | Tailwind CSS | Apple 风格毛玻璃效果 + 暗色模式 |
+| 状态管理 | React Context | 全局状态 + 主题切换 |
+| 流式控制 | AbortController | SSE 流式对话的实时中断 |
 | 代码编辑器 | Monaco Editor | 在线编辑 Memory/Skill 文件 |
 
 ## 项目结构
@@ -29,6 +45,7 @@ mini-openclaw/
 │   ├── config.py           # 全局配置
 │   ├── api/                # API 路由层
 │   ├── graph/              # Agent 核心逻辑
+│   │   └── strategy_selector.py  # 策略选择器（单/多Agent判断）
 │   ├── tools/              # 5 个核心工具
 │   ├── workspace/          # System Prompts
 │   ├── memory/             # 长期记忆
@@ -40,7 +57,14 @@ mini-openclaw/
 │   └── src/
 │       ├── app/            # 页面
 │       ├── components/     # UI 组件
+│       │   ├── layout/     # 布局组件（Navbar, Sidebar）
+│       │   ├── chat/       # 对话组件（ChatPanel, ChatInput）
+│       │   ├── agents/     # Agent 管理（AgentsPanel）
+│       │   ├── task/       # 任务展示（TaskPanel, TodoList）
+│       │   └── editor/     # 编辑器（InspectorPanel）
 │       └── lib/            # 状态管理 & API
+│           ├── store.tsx   # React Context（主题、会话、流式控制）
+│           └── api.ts      # API 封装（SSE 流式、AbortSignal）
 │
 ├── start.sh                # 一键启动脚本
 ├── start-backend.sh        # 后端单独启动脚本
@@ -187,6 +211,35 @@ System Prompt 由以下 6 部分动态拼接：
 ### RAG 模式
 
 启用 RAG 模式后，`MEMORY.md` 不再完整注入 System Prompt，而是通过语义检索动态注入相关片段。
+
+### 多 Agent 协同机制
+
+系统通过 `backend/graph/strategy_selector.py` 实现智能的任务分发策略：
+
+**执行策略判断**：
+- **单 Agent 执行**：简单对话、代码生成、翻译等单一任务
+- **多 Agent 协同**：数据分析、文档处理、多步骤任务、跨领域任务
+
+**任务复杂度检测**：
+- 多步骤任务（"先...再..."、"然后...最后..."）
+- 批量处理任务
+- 跨领域任务（需要整合多个数据源）
+
+**领域专家分发**：
+- `data_agent` - 数据处理、统计分析、可视化
+- `doc_agent` - 文档解析、内容提取、格式转换
+
+**前端可视化**：
+- 实时展示当前执行策略
+- 显示任务分发的目标 Agent
+- 展示子任务列表和执行状态
+
+### 前端主题系统
+
+- **双主题支持**：亮色（Light）/ 暗色（Dark）模式
+- **持久化存储**：主题偏好保存在 localStorage，刷新页面不丢失
+- **无缝切换**：基于 Tailwind CSS `dark:` 类变体，所有组件保持视觉一致性
+- **Monaco Editor 联动**：代码编辑器自动切换 `vs` / `vs-dark` 主题
 
 ### 快速体验地址
 [Omni-OpenClaw](http://82.157.98.72:5004/)
