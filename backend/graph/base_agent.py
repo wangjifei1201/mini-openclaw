@@ -8,14 +8,14 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
+from config import settings
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel
-
-from config import settings
 
 
 class AgentType(str, Enum):
     """Agent类型枚举"""
+
     PRIMARY = "primary"
     COORDINATOR = "coordinator"
     DOMAIN = "domain"
@@ -23,6 +23,7 @@ class AgentType(str, Enum):
 
 class AgentStatus(str, Enum):
     """Agent状态枚举"""
+
     RUNNING = "running"
     IDLE = "idle"
     BUSY = "busy"
@@ -31,6 +32,7 @@ class AgentStatus(str, Enum):
 
 class AgentConfig(BaseModel):
     """Agent配置"""
+
     name: str
     agent_type: AgentType
     description: str = ""
@@ -122,66 +124,46 @@ class BaseAgent(ABC):
                 return ""
 
         # 1. Agent专属技能列表
-        skills_snapshot = read_file(
-            self.workspace_dir / "SKILLS_SNAPSHOT_LOCAL.md",
-            "Skills Snapshot"
-        )
+        skills_snapshot = read_file(self.workspace_dir / "SKILLS_SNAPSHOT_LOCAL.md", "Skills Snapshot")
         if skills_snapshot:
             parts.append(skills_snapshot)
 
         # 2. 全局行为准则
         global_agents = read_file(
-            self.base_dir / "workspace" / "global_memory" / "AGENTS_GLOBAL.md",
-            "Global Agents Guide"
+            self.base_dir / "workspace" / "global_memory" / "AGENTS_GLOBAL.md", "Global Agents Guide"
         )
         if global_agents:
             parts.append(global_agents)
 
         # 3. 核心设定
-        soul = read_file(
-            self.workspace_dir / "SOUL.md",
-            "Soul"
-        )
+        soul = read_file(self.workspace_dir / "SOUL.md", "Soul")
         if soul:
             parts.append(soul)
 
         # 4. 自我认知
-        identity = read_file(
-            self.workspace_dir / "IDENTITY.md",
-            "Identity"
-        )
+        identity = read_file(self.workspace_dir / "IDENTITY.md", "Identity")
         if identity:
             parts.append(identity)
 
         # 5. 用户画像
-        user = read_file(
-            self.base_dir / "workspace" / "global_memory" / "USER.md",
-            "User Profile"
-        )
+        user = read_file(self.base_dir / "workspace" / "global_memory" / "USER.md", "User Profile")
         if user:
             parts.append(user)
 
         # 6. 专属行为准则
-        agents_local = read_file(
-            self.workspace_dir / "AGENTS_LOCAL.md",
-            "Agents Local Guide"
-        )
+        agents_local = read_file(self.workspace_dir / "AGENTS_LOCAL.md", "Agents Local Guide")
         if agents_local:
             parts.append(agents_local)
 
         # 7. 专属长期记忆
-        memory = read_file(
-            self.workspace_dir / "memory" / "MEMORY.md",
-            "Long-term Memory"
-        )
+        memory = read_file(self.workspace_dir / "memory" / "MEMORY.md", "Long-term Memory")
         if memory:
             parts.append(memory)
 
         # 8. 协同状态快照（仅Primary和Coordinator Agent加载）
         if self.agent_type in [AgentType.PRIMARY, AgentType.COORDINATOR]:
             coordination_snapshot = read_file(
-                self.base_dir / "workspace" / "coordination" / "COORDINATION_SNAPSHOT.md",
-                "Coordination Snapshot"
+                self.base_dir / "workspace" / "coordination" / "COORDINATION_SNAPSHOT.md", "Coordination Snapshot"
             )
             if coordination_snapshot:
                 parts.append(coordination_snapshot)
@@ -203,9 +185,7 @@ class BaseAgent(ABC):
         pass
 
     @abstractmethod
-    async def astream(
-        self, message: str, session_id: str = None, **kwargs
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    async def astream(self, message: str, session_id: str = None, **kwargs) -> AsyncGenerator[Dict[str, Any], None]:
         """
         流式执行
 
@@ -261,6 +241,7 @@ class PrimaryAgent(BaseAgent):
         try:
             # 构建Agent
             from langchain.agents import create_agent
+
             system_prompt = self.build_system_prompt()
             agent = create_agent(
                 model=self.llm,
@@ -276,9 +257,7 @@ class PrimaryAgent(BaseAgent):
         finally:
             self.set_idle()
 
-    async def astream(
-        self, message: str, session_id: str = None, **kwargs
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    async def astream(self, message: str, session_id: str = None, **kwargs) -> AsyncGenerator[Dict[str, Any], None]:
         """流式执行"""
         # 使用原有的agent_manager实现
         yield {"type": "error", "error": "PrimaryAgent astream not implemented, use AgentManager"}
@@ -322,9 +301,7 @@ class CoordinatorAgent(BaseAgent):
         finally:
             self.set_idle()
 
-    async def astream(
-        self, message: str, session_id: str = None, **kwargs
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    async def astream(self, message: str, session_id: str = None, **kwargs) -> AsyncGenerator[Dict[str, Any], None]:
         """流式执行"""
         yield {"type": "error", "error": "CoordinatorAgent does not support streaming"}
 
@@ -359,7 +336,11 @@ class CoordinatorAgent(BaseAgent):
             if "data" in task_type.lower():
                 return {"success": True, "agent": "data_agent"}
             elif "doc" in task_type.lower():
-                return {"success": True, "agent": "doc_agent"}
+                return {"success": True, "agent": "research_agent"}
+            elif "code" in task_type.lower():
+                return {"success": True, "agent": "code_agent"}
+            elif "creative" in task_type.lower() or "write" in task_type.lower():
+                return {"success": True, "agent": "creative_agent"}
 
         return {"success": False, "error": "No matching agent found"}
 
@@ -372,6 +353,7 @@ class CoordinatorAgent(BaseAgent):
                 parts = content.split("---", 2)
                 if len(parts) >= 3:
                     import yaml
+
                     frontmatter = yaml.safe_load(parts[1])
                     return {
                         "task_id": frontmatter.get("task_id"),
@@ -386,6 +368,7 @@ class CoordinatorAgent(BaseAgent):
     async def _update_snapshot(self, snapshot_path: Path, tasks: List[Dict[str, Any]]) -> None:
         """更新协同状态快照"""
         import datetime
+
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         content = f"""# 协同状态快照
@@ -402,8 +385,10 @@ class CoordinatorAgent(BaseAgent):
 |-------|------|------|----------|
 | primary_agent | primary | running | - |
 | coordinator_agent | coordinator | running | - |
+| code_agent | universal | idle | - |
+| research_agent | universal | idle | - |
+| creative_agent | universal | idle | - |
 | data_agent | domain | idle | - |
-| doc_agent | domain | idle | - |
 
 ## 任务队列
 
@@ -450,6 +435,7 @@ class DomainAgent(BaseAgent):
         try:
             # 构建Agent
             from langchain.agents import create_agent
+
             system_prompt = self.build_system_prompt()
             agent = create_agent(
                 model=self.llm,
@@ -465,8 +451,6 @@ class DomainAgent(BaseAgent):
         finally:
             self.set_idle()
 
-    async def astream(
-        self, message: str, session_id: str = None, **kwargs
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    async def astream(self, message: str, session_id: str = None, **kwargs) -> AsyncGenerator[Dict[str, Any], None]:
         """流式执行"""
         yield {"type": "error", "error": "DomainAgent does not support streaming directly"}

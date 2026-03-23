@@ -58,6 +58,8 @@ export interface Message {
   strategy?: StrategyAnalysis
   agentExecutions?: AgentExecution[]
   activeAgent?: string
+  matchedSkill?: { name: string; description: string }
+  plan?: { title: string; description: string; steps: any[] }
 }
 
 export interface Session {
@@ -95,6 +97,9 @@ interface AppContextType {
   // 任务状态
   currentTask: TaskPanelData | null
   
+  // 上下文告警状态
+  contextWarning: { status: string; usage_ratio: number; message: string } | null
+  
   // 操作方法
   loadSessions: () => Promise<void>
   selectSession: (id: string) => Promise<void>
@@ -113,6 +118,7 @@ interface AppContextType {
   clearCurrentTask: () => void
   toggleTheme: () => void
   stopStreaming: () => void
+  dismissContextWarning: () => void
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -143,12 +149,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentTask, setCurrentTask] = useState<TaskPanelData | null>(null)
   const [taskPanelWidth, setTaskPanelWidth] = useState(320)
   
+  // 上下文告警状态
+  const [contextWarning, setContextWarning] = useState<{ status: string; usage_ratio: number; message: string } | null>(null)
+  
   // AbortController ref for stopping streaming
   const abortControllerRef = useRef<AbortController | null>(null)
   
   // 清除当前任务
   const clearCurrentTask = useCallback(() => {
     setCurrentTask(null)
+  }, [])
+  
+  // 关闭上下文告警
+  const dismissContextWarning = useCallback(() => {
+    setContextWarning(null)
   }, [])
   
   // 切换主题
@@ -310,8 +324,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
               agentStatus: data.agent_status || {
                 primary_agent: 'idle',
                 coordinator_agent: 'processing',
+                code_agent: 'idle',
+                research_agent: 'idle',
+                creative_agent: 'idle',
                 data_agent: 'idle',
-                doc_agent: 'idle',
               },
             })
             break
@@ -365,9 +381,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setCurrentTask(prev => {
               if (!prev) return null
               const finalStats = data.final_stats
+              // 重置所有 agent 状态为 idle
+              const resetAgentStatus: Record<string, 'idle' | 'processing' | 'completed' | 'failed'> = {}
+              if (prev.agentStatus) {
+                for (const key of Object.keys(prev.agentStatus)) {
+                  resetAgentStatus[key] = 'idle'
+                }
+              }
               return {
                 ...prev,
                 status: 'completed',
+                agentStatus: resetAgentStatus,
                 stats: finalStats ? {
                   ...prev.stats,
                   llmCallCount: finalStats.llmCallCount ?? finalStats.llm_call_count ?? prev.stats.llmCallCount,
@@ -377,6 +401,78 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   toolCallCount: finalStats.toolCallCount ?? finalStats.tool_call_count ?? prev.stats.toolCallCount,
                   elapsedTime: finalStats.elapsedTime ?? finalStats.elapsed_time ?? prev.stats.elapsedTime,
                 } : prev.stats,
+              }
+            })
+            break
+
+          // ============ 并行执行 + 优化事件 ============
+
+          case 'parallel_analysis':
+            setCurrentTask(prev => prev ? {
+              ...prev,
+              parallelGroups: (data.groups || []).map((g: any) => ({
+                indices: g.indices,
+                type: g.type,
+                agents: g.agents,
+              })),
+            } : null)
+            break
+
+          case 'parallel_start':
+            setCurrentTask(prev => prev ? {
+              ...prev,
+              activeParallelGroup: data.group_indices,
+            } : null)
+            break
+
+          case 'parallel_end':
+            setCurrentTask(prev => prev ? {
+              ...prev,
+              activeParallelGroup: undefined,
+            } : null)
+            break
+
+          case 'context_warning':
+            setContextWarning({
+              status: data.status,
+              usage_ratio: data.usage_ratio,
+              message: data.message,
+            })
+            break
+
+          case 'prometheus_enter':
+            setMessages(prev => prev.map(msg =>
+              msg.id === assistantMsgId
+                ? { ...msg, content: data.message || '' }
+                : msg
+            ))
+            break
+
+          case 'plan_generated':
+            setMessages(prev => prev.map(msg =>
+              msg.id === assistantMsgId
+                ? { ...msg, plan: data.plan }
+                : msg
+            ))
+            break
+
+          case 'skill_matched':
+            setMessages(prev => prev.map(msg =>
+              msg.id === assistantMsgId
+                ? { ...msg, matchedSkill: { name: data.skill, description: data.description } }
+                : msg
+            ))
+            break
+
+          case 'continuation_enforced':
+            setCurrentTask(prev => {
+              if (!prev) return null
+              return {
+                ...prev,
+                continuationEvents: [
+                  ...(prev.continuationEvents || []),
+                  { todoId: data.todo_id, agent: data.agent, message: data.message, timestamp: Date.now() },
+                ],
               }
             })
             break
@@ -571,6 +667,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     clearCurrentTask,
     toggleTheme,
     stopStreaming,
+    contextWarning,
+    dismissContextWarning,
   }
   
   return (

@@ -32,8 +32,12 @@ from config import settings
 from graph import agent_manager
 from graph.coordinator import get_coordination_manager, init_coordination_manager
 from graph.llm_task_planner import init_task_planner
+from graph.prometheus import init_prometheus
 from graph.task_dispatcher import init_task_dispatcher
+from hooks import init_hook_manager
+from skills import init_skill_manager
 from tools.skills_scanner import scan_and_save_skills
+from utils.context_manager import init_context_monitor
 
 
 @asynccontextmanager
@@ -41,20 +45,23 @@ async def lifespan(app: FastAPI):
     """
     应用生命周期管理
 
-    启动时执行六步初始化：
+    启动时执行九步初始化：
     1. scan_skills() → 扫描 skills/**/SKILL.md，生成 SKILLS_SNAPSHOT.md
     2. agent_manager.initialize() → 创建 LLM 实例，注册工具
     3. memory_indexer.rebuild_index() → 构建 MEMORY.md 向量索引
     4. init_coordination_manager() → 初始化多Agent协同管理器
     5. init_task_dispatcher() → 初始化任务分发器
     6. init_task_planner() → 初始化LLM任务规划器
+    7. init_hook_manager() → 初始化钩子系统
+    8. init_skill_manager() → 初始化技能系统
+    9. init_context_monitor() + init_prometheus() → 初始化上下文管理 & Prometheus
     """
     print("=" * 50)
     print("Mini-OpenClaw 启动中...")
     print("=" * 50)
 
     # 1. 扫描技能
-    print("[1/6] 扫描技能目录...")
+    print("[1/9] 扫描技能目录...")
     try:
         snapshot = scan_and_save_skills(BASE_DIR)
         print(f"      已生成 SKILLS_SNAPSHOT.md")
@@ -62,7 +69,7 @@ async def lifespan(app: FastAPI):
         print(f"      技能扫描失败: {e}")
 
     # 2. 初始化 Agent 管理器
-    print("[2/6] 初始化 Agent 引擎...")
+    print("[2/9] 初始化 Agent 引擎...")
     try:
         agent_manager.initialize(BASE_DIR)
         print(f"      LLM: {settings.OPENAI_CHAT_MODEL}")
@@ -71,7 +78,7 @@ async def lifespan(app: FastAPI):
         print(f"      Agent 初始化失败: {e}")
 
     # 3. 构建记忆索引
-    print("[3/6] 构建记忆索引...")
+    print("[3/9] 构建记忆索引...")
     try:
         if agent_manager.memory_indexer.rebuild_index():
             print("      MEMORY.md 索引已构建")
@@ -81,7 +88,7 @@ async def lifespan(app: FastAPI):
         print(f"      索引构建失败: {e}")
 
     # 4. 初始化协同管理器
-    print("[4/6] 初始化多Agent协同管理器...")
+    print("[4/9] 初始化多Agent协同管理器...")
     try:
         init_coordination_manager(BASE_DIR)
         print("      多Agent协同系统已就绪")
@@ -89,7 +96,7 @@ async def lifespan(app: FastAPI):
         print(f"      协同管理器初始化失败: {e}")
 
     # 5. 初始化任务分发器
-    print("[5/6] 初始化任务分发器...")
+    print("[5/9] 初始化任务分发器...")
     try:
         init_task_dispatcher(BASE_DIR, agent_manager.llm)
         print("      任务分发器已就绪")
@@ -97,13 +104,40 @@ async def lifespan(app: FastAPI):
         print(f"      任务分发器初始化失败: {e}")
 
     # 6. 初始化LLM任务规划器
-    print("[6/6] 初始化LLM任务规划器...")
+    print("[6/9] 初始化LLM任务规划器...")
     try:
         coordinator = get_coordination_manager()
         init_task_planner(agent_manager.llm, coordinator, BASE_DIR)
         print("      LLM任务规划器已就绪")
     except Exception as e:
         print(f"      LLM任务规划器初始化失败: {e}")
+
+    # 7. 初始化钩子系统
+    print("[7/9] 初始化钩子系统...")
+    try:
+        hook_mgr = init_hook_manager()
+        hooks = hook_mgr.list_hooks()
+        print(f"      已注册 {len(hooks)} 个钩子")
+    except Exception as e:
+        print(f"      钩子系统初始化失败: {e}")
+
+    # 8. 初始化技能系统
+    print("[8/9] 初始化技能系统...")
+    try:
+        skill_mgr = init_skill_manager(BASE_DIR)
+        skills_list = skill_mgr.list_skills()
+        print(f"      已加载 {len(skills_list)} 个技能")
+    except Exception as e:
+        print(f"      技能系统初始化失败: {e}")
+
+    # 9. 初始化上下文管理 & Prometheus
+    print("[9/9] 初始化上下文管理 & Prometheus...")
+    try:
+        init_context_monitor(model_limit=128000)
+        init_prometheus(agent_manager.llm, coordinator, BASE_DIR)
+        print("      上下文监控器 & Prometheus 已就绪")
+    except Exception as e:
+        print(f"      初始化失败: {e}")
 
     print("=" * 50)
     print(f"Mini-OpenClaw 已启动: http://localhost:8002")

@@ -55,8 +55,10 @@ const statusConfig = {
 const agentColors: Record<string, string> = {
   primary_agent: 'bg-blue-500',
   coordinator_agent: 'bg-purple-500',
+  code_agent: 'bg-cyan-500',
+  research_agent: 'bg-teal-500',
+  creative_agent: 'bg-pink-500',
   data_agent: 'bg-orange-500',
-  doc_agent: 'bg-green-500',
 }
 
 function formatTime(timestamp: string): string {

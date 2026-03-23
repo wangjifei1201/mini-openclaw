@@ -4,9 +4,10 @@ import { useRef, useEffect } from 'react'
 import { useApp } from '@/lib/store'
 import ChatMessage from './ChatMessage'
 import ChatInput from './ChatInput'
+import ContextWarningBanner from './ContextWarningBanner'
 
 export default function ChatPanel() {
-  const { messages, currentSessionId } = useApp()
+  const { messages, currentSessionId, contextWarning, dismissContextWarning } = useApp()
   const bottomRef = useRef<HTMLDivElement>(null)
   
   // 自动滚动到底部
@@ -16,6 +17,20 @@ export default function ChatPanel() {
   
   return (
     <div className="h-full flex flex-col bg-apple-gray">
+      {/* 上下文窗口告警 */}
+      {contextWarning && (
+        <div className="px-3 md:px-4 pt-2">
+          <div className="max-w-4xl mx-auto">
+            <ContextWarningBanner
+              status={contextWarning.status}
+              usageRatio={contextWarning.usage_ratio}
+              message={contextWarning.message}
+              onDismiss={dismissContextWarning}
+            />
+          </div>
+        </div>
+      )}
+      
       {/* 消息列表 */}
       <div className="flex-1 overflow-y-auto p-3 md:p-4">
         {!currentSessionId ? (

@@ -70,6 +70,7 @@ def collect_agent_capabilities(coordinator, base_dir: Path) -> str:
         # Read IDENTITY.md for capability description (first 300 chars)
         capability_desc = ""
         identity_paths = [
+            base_dir / "workspace" / "universal_agents" / name / "IDENTITY.md",
             base_dir / "workspace" / "domain_agents" / name / "IDENTITY.md",
             base_dir / "workspace" / name / "IDENTITY.md",
         ]

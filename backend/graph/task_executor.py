@@ -128,10 +128,20 @@ class TaskExecutor:
             {"content": "生成数据可视化图表", "agent": "data_agent"},
             {"content": "输出分析报告", "agent": "primary_agent"},
         ],
-        "document_parsing": [
-            {"content": "解析文档内容", "agent": "doc_agent"},
-            {"content": "提取关键信息", "agent": "doc_agent"},
-            {"content": "生成处理结果", "agent": "primary_agent"},
+        "code_task": [
+            {"content": "分析需求和技术方案", "agent": "code_agent"},
+            {"content": "编写代码并验证", "agent": "code_agent"},
+            {"content": "汇总代码实现结果", "agent": "primary_agent"},
+        ],
+        "research_task": [
+            {"content": "收集相关资料和信息", "agent": "research_agent"},
+            {"content": "分析整理调研内容", "agent": "research_agent"},
+            {"content": "生成调研报告", "agent": "primary_agent"},
+        ],
+        "creative_task": [
+            {"content": "理解创作需求和风格要求", "agent": "creative_agent"},
+            {"content": "撰写内容初稿", "agent": "creative_agent"},
+            {"content": "审核润色并输出最终版本", "agent": "primary_agent"},
         ],
         "general": [
             {"content": "理解任务需求", "agent": "primary_agent"},
@@ -178,8 +188,10 @@ class TaskExecutor:
         context.agent_status = {
             "primary_agent": "idle",
             "coordinator_agent": "idle",
+            "code_agent": "idle",
+            "research_agent": "idle",
+            "creative_agent": "idle",
             "data_agent": "idle",
-            "doc_agent": "idle",
         }
 
         self._tasks[task_id] = context
@@ -418,9 +430,17 @@ class TaskExecutor:
                 return "data_visualization"
             return "data_analysis"
 
-        # 文档处理任务
-        if any(kw in message_lower for kw in ["文档", "pdf", "word", "解析", "提取"]):
-            return "document_parsing"
+        # 代码任务
+        if any(kw in message_lower for kw in ["代码", "编程", "调试", "bug", "实现", "开发", "重构", "测试", "code", "debug"]):
+            return "code_task"
+
+        # 调研任务
+        if any(kw in message_lower for kw in ["调研", "搜索", "查询", "检索", "资料", "文档解析", "pdf", "word"]):
+            return "research_task"
+
+        # 创作任务
+        if any(kw in message_lower for kw in ["撰写", "写作", "翻译", "文案", "文档", "报告", "方案", "内容创作", "润色"]):
+            return "creative_task"
 
         return "general"
 

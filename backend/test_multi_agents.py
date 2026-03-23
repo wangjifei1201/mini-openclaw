@@ -259,7 +259,7 @@ def run_full_test_scenario():
         task_content="分析销售数据，生成月度报告。数据包含CSV格式的销售记录，需要计算总销售额、平均值和趋势分析。", task_type="data_processing"
     )
 
-    # 4. 创建文档分析任务（自动匹配doc_agent）
+    # 4. 创建文档分析任务（自动匹配research_agent）
     task_id_2 = test_create_task(task_content="解析PDF文档，提取关键信息并生成摘要。文档包含产品规格说明书。", task_type="document_analysis")
 
     # 5. 创建指定Agent的任务

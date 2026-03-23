@@ -150,13 +150,12 @@ async def control_agent(request: AgentControlRequest):
 
 
 def _resolve_agent_dir(agent_name: str) -> Path:
-    """解析 Agent 的 workspace 目录路径"""
+    """解析 Agent 的 workspace 目录路径（支持 universal / domain / 顶层）"""
+    for subdir in ("universal_agents", "domain_agents"):
+        candidate = BASE_DIR / "workspace" / subdir / agent_name
+        if candidate.exists():
+            return candidate
     direct = BASE_DIR / "workspace" / agent_name
-    if direct.exists():
-        return direct
-    domain = BASE_DIR / "workspace" / "domain_agents" / agent_name
-    if domain.exists():
-        return domain
     return direct
 
 
@@ -231,7 +230,13 @@ async def create_agent(request: CreateAgentRequest):
 
     coordinator.register_agent(request.agent_name, request.agent_type, request.skills)
 
-    agent_dir = BASE_DIR / "workspace" / "domain_agents" / request.agent_name
+    # 根据类型选择存储目录
+    if request.agent_type == "universal":
+        agent_dir = BASE_DIR / "workspace" / "universal_agents" / request.agent_name
+        workspace_path = f"workspace/universal_agents/{request.agent_name}/"
+    else:
+        agent_dir = BASE_DIR / "workspace" / "domain_agents" / request.agent_name
+        workspace_path = f"workspace/domain_agents/{request.agent_name}/"
     agent_dir.mkdir(parents=True, exist_ok=True)
     (agent_dir / "memory").mkdir(exist_ok=True)
 
@@ -266,7 +271,7 @@ async def create_agent(request: CreateAgentRequest):
             "agent_name": request.agent_name,
             "agent_type": request.agent_type,
             "skills": request.skills,
-            "path": f"workspace/domain_agents/{request.agent_name}/",
+            "path": workspace_path,
         },
         "msg": f"Agent {request.agent_name} created successfully",
     }

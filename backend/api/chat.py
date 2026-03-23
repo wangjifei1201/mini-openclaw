@@ -1,22 +1,28 @@
 """
 聊天 API - SSE 流式对话
 
-支持两种执行模式：
+支持三种执行模式：
 1. 单Agent模式 - 直接使用 AgentManager 执行
-2. 多Agent模式 - 通过策略分析决定是否分发给 Domain Agent
+2. 多Agent模式 - 通过策略分析决定是否分发给 Domain Agent（支持并行执行）
+3. Prometheus规划模式 - /plan 命令进入采访式需求收集
 """
 import json
 import time
 from typing import Optional
 
-from config import get_multi_agent_mode
+from config import BASE_DIR, get_multi_agent_mode
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from graph import agent_manager
 from graph.llm_task_planner import get_task_planner
+from graph.parallel_executor import get_parallel_executor
+from graph.prometheus import get_prometheus
 from graph.task_dispatcher import get_task_dispatcher
 from graph.task_executor import get_task_executor
+from hooks import HookType, get_hook_manager
 from pydantic import BaseModel
+from skills import get_skill_manager
+from utils.context_manager import get_context_monitor
 from utils.token_tracker import estimate_tokens, get_token_tracker
 
 router = APIRouter()
@@ -39,8 +45,8 @@ async def _multi_agent_generator(
     """
     多Agent执行的SSE事件生成器
 
-    编排 TaskExecutor + TaskDispatcher + TokenTracker 的完整流程。
-    遍历 todos 串行执行，每个 todo 委托给对应的 Agent。
+    编排 TaskExecutor + TaskDispatcher + ParallelExecutor + Hooks 的完整流程。
+    自动分析任务依赖关系，将无依赖的 TODO 并行执行。
 
     Args:
         message: 用户消息
@@ -50,6 +56,8 @@ async def _multi_agent_generator(
     """
     task_executor = get_task_executor()
     task_dispatcher = get_task_dispatcher()
+    parallel_executor = get_parallel_executor()
+    hook_manager = get_hook_manager()
     tracker = get_token_tracker()
 
     # Step 1: 发送策略决策事件
@@ -64,6 +72,7 @@ async def _multi_agent_generator(
         "target_agent": first_domain_agent,
         "confidence": plan.confidence,
         "reason": plan.reason,
+        "source": getattr(plan, "source", "llm"),
         "sub_tasks": None,
     }
 
@@ -89,190 +98,259 @@ async def _multi_agent_generator(
         "agent_status": agent_status,
     }
 
-    # Step 3: 遍历 todos 串行执行
+    # Step 3: 分析并行分组
+    parallel_groups = parallel_executor.analyze_dependencies(todos)
+
+    yield {
+        "type": "parallel_analysis",
+        "task_id": task_id,
+        "total_todos": len(todos),
+        "groups": [
+            {
+                "indices": g.todo_indices,
+                "type": g.group_type,
+                "agents": [todos[i].get("agent", "primary_agent") for i in g.todo_indices],
+            }
+            for g in parallel_groups
+        ],
+    }
+
+    # Step 4: 按分组执行 todos
     all_content = ""
     all_tool_calls = []
-    last_stats_time = time.time()
 
-    try:
-        for todo in todos:
-            todo_id = todo["id"]
-            todo_agent = todo.get("agent", "primary_agent")
+    async def _execute_single_todo(todo, idx):
+        """执行单个 TODO 的生成器（供并行执行器调用）"""
+        nonlocal all_content, all_tool_calls
 
-            # 更新 todo 状态为 in_progress
-            task_executor.update_todo_status(task_id, todo_id, "in_progress")
+        todo_id = todo["id"]
+        todo_agent = todo.get("agent", "primary_agent")
+
+        task_executor.update_todo_status(task_id, todo_id, "in_progress")
+        yield {
+            "type": "todo_update",
+            "task_id": task_id,
+            "todo_id": todo_id,
+            "old_status": "pending",
+            "new_status": "in_progress",
+            "agent": todo_agent,
+        }
+
+        old_a_status = agent_status.get(todo_agent, "idle")
+        agent_status[todo_agent] = "processing"
+        yield {
+            "type": "agent_status",
+            "task_id": task_id,
+            "agent_name": todo_agent,
+            "old_status": old_a_status,
+            "new_status": "processing",
+        }
+
+        todo_content = ""
+        todo_result = ""
+
+        try:
+            if todo_agent != "primary_agent" and task_dispatcher:
+                # Domain Agent 执行
+                task_prompt = f"任务: {todo.get('content', message)}\n\n原始用户请求: {message}"
+
+                # 触发 PreToolUse 钩子
+                if hook_manager:
+                    hook_ctx = await hook_manager.trigger(
+                        HookType.PRE_TOOL_USE,
+                        {"tool_name": "dispatch_task", "tool_input": task_prompt, "agent_name": todo_agent},
+                    )
+                    if hook_ctx.get("skip"):
+                        todo_result = hook_ctx.get("skip_reason", "Skipped by hook")
+                        task_executor.update_todo_status(task_id, todo_id, "completed", todo_result)
+                        yield {
+                            "type": "todo_update",
+                            "task_id": task_id,
+                            "todo_id": todo_id,
+                            "old_status": "in_progress",
+                            "new_status": "completed",
+                            "agent": todo_agent,
+                            "result": todo_result,
+                        }
+                        return
+
+                async for event in task_dispatcher.dispatch_task(
+                    task_content=task_prompt,
+                    target_agent=todo_agent,
+                    task_id=task_id,
+                    session_id=session_id,
+                ):
+                    event_type = event.get("type", "")
+                    if event_type == "token":
+                        content = event.get("content", "")
+                        todo_content += content
+                        all_content += content
+                        yield event
+                    elif event_type in ("tool_start", "tool_end", "new_response"):
+                        if event_type == "tool_end":
+                            all_tool_calls.append(
+                                {
+                                    "tool": event.get("tool", ""),
+                                    "input": event.get("input", ""),
+                                    "output": event.get("output", ""),
+                                }
+                            )
+                            if hook_manager:
+                                await hook_manager.trigger(
+                                    HookType.POST_TOOL_USE,
+                                    {
+                                        "tool_name": event.get("tool", ""),
+                                        "tool_output": event.get("output", ""),
+                                        "agent_name": todo_agent,
+                                    },
+                                )
+                        yield event
+                    elif event_type == "dispatch_end":
+                        todo_result = event.get("result", todo_content)
+                    elif event_type == "dispatch_error":
+                        error_msg = event.get("error", "Unknown error")
+                        yield {"type": "error", "error": f"[{todo_agent}] {error_msg}", "agent_name": todo_agent}
+                        todo_result = f"Error: {error_msg}"
+            else:
+                # Primary Agent 执行
+                todo_prompt = f"{todo.get('content', message)}\n\n原始用户请求: {message}"
+
+                # 注入技能提示
+                skill_manager = get_skill_manager()
+                if skill_manager:
+                    matched_skill = skill_manager.match(todo.get("content", ""))
+                    if matched_skill:
+                        todo_prompt = f"{matched_skill.prompt_template}\n\n{todo_prompt}"
+
+                estimated_input = estimate_tokens(todo_prompt)
+
+                async for event in agent_manager.astream(todo_prompt, session_id):
+                    event_type = event.get("type", "")
+                    if event_type == "token":
+                        content = event.get("content", "")
+                        todo_content += content
+                        all_content += content
+                        event["agent_name"] = "primary_agent"
+                        event["task_id"] = task_id
+                        yield event
+                    elif event_type in ("tool_start", "tool_end"):
+                        event["agent_name"] = "primary_agent"
+                        event["task_id"] = task_id
+                        if event_type == "tool_end":
+                            all_tool_calls.append(
+                                {
+                                    "tool": event.get("tool", ""),
+                                    "input": event.get("input", ""),
+                                    "output": event.get("output", ""),
+                                }
+                            )
+                            tracker.record_tool_call(event.get("tool", "unknown"), task_id, "primary_agent")
+                            if hook_manager:
+                                await hook_manager.trigger(
+                                    HookType.POST_TOOL_USE,
+                                    {
+                                        "tool_name": event.get("tool", ""),
+                                        "tool_output": event.get("output", ""),
+                                        "agent_name": "primary_agent",
+                                    },
+                                )
+                        yield event
+                    elif event_type == "new_response":
+                        event["agent_name"] = "primary_agent"
+                        yield event
+                    elif event_type == "done":
+                        todo_result = event.get("content", todo_content)
+                        estimated_output = estimate_tokens(todo_content)
+                        tracker.record_llm_call(
+                            agent="primary_agent",
+                            input_tokens=estimated_input,
+                            output_tokens=estimated_output,
+                            task_id=task_id,
+                        )
+                    elif event_type == "error":
+                        event["agent_name"] = "primary_agent"
+                        yield event
+                        todo_result = f"Error: {event.get('error', '')}"
+
+            # TODO Continuation Enforcer: 检查 Agent 是否放弃任务
+            if hook_manager and todo_result:
+                pending = [t for t in todos if t.get("status") != "completed" and t["id"] != todo_id]
+                if pending:
+                    cont_ctx = await hook_manager.trigger(
+                        HookType.RESPONSE_GENERATED,
+                        {
+                            "response": todo_result,
+                            "pending_todos": pending,
+                            "task_id": task_id,
+                            "agent_name": todo_agent,
+                        },
+                    )
+                    if cont_ctx.get("needs_continuation"):
+                        yield {
+                            "type": "continuation_enforced",
+                            "task_id": task_id,
+                            "todo_id": todo_id,
+                            "agent": todo_agent,
+                            "message": "检测到任务中断，强制继续执行",
+                        }
+
+            task_executor.update_todo_status(task_id, todo_id, "completed", todo_result)
             yield {
                 "type": "todo_update",
                 "task_id": task_id,
                 "todo_id": todo_id,
-                "old_status": "pending",
-                "new_status": "in_progress",
+                "old_status": "in_progress",
+                "new_status": "completed",
                 "agent": todo_agent,
+                "result": (todo_result[:200] + "...") if len(todo_result) > 200 else todo_result,
             }
 
-            # 更新 agent 状态
-            old_agent_status = agent_status.get(todo_agent, "idle")
-            agent_status[todo_agent] = "processing"
+        except Exception as e:
+            error_msg = str(e)
+            task_executor.update_todo_status(task_id, todo_id, "failed", error_msg)
             yield {
-                "type": "agent_status",
+                "type": "todo_update",
                 "task_id": task_id,
-                "agent_name": todo_agent,
-                "old_status": old_agent_status,
-                "new_status": "processing",
+                "todo_id": todo_id,
+                "old_status": "in_progress",
+                "new_status": "failed",
+                "agent": todo_agent,
+                "result": error_msg,
             }
 
-            # 执行 todo
-            todo_content = ""
-            todo_result = ""
+        agent_status[todo_agent] = "idle"
+        yield {
+            "type": "agent_status",
+            "task_id": task_id,
+            "agent_name": todo_agent,
+            "old_status": "busy",
+            "new_status": "idle",
+        }
 
-            try:
-                if todo_agent != "primary_agent" and task_dispatcher:
-                    # Domain Agent 执行
-                    task_prompt = f"任务: {todo.get('content', message)}\n\n原始用户请求: {message}"
-                    async for event in task_dispatcher.dispatch_task(
-                        task_content=task_prompt,
-                        target_agent=todo_agent,
-                        task_id=task_id,
-                        session_id=session_id,
-                    ):
-                        event_type = event.get("type", "")
+        stats = tracker.get_task_stats(task_id)
+        if stats:
+            yield {"type": "stats_update", "task_id": task_id, **stats}
 
-                        if event_type == "token":
-                            content = event.get("content", "")
-                            todo_content += content
-                            all_content += content
-                            yield event
+    try:
+        # 使用并行执行器按分组执行
+        for group in parallel_groups:
+            async for event in parallel_executor.execute_parallel_group(group, todos, _execute_single_todo):
+                yield event
 
-                        elif event_type in ("tool_start", "tool_end", "new_response"):
-                            if event_type == "tool_end":
-                                all_tool_calls.append(
-                                    {
-                                        "tool": event.get("tool", ""),
-                                        "input": event.get("input", ""),
-                                        "output": event.get("output", ""),
-                                    }
-                                )
-                            yield event
-
-                        elif event_type == "dispatch_end":
-                            todo_result = event.get("result", todo_content)
-
-                        elif event_type == "dispatch_error":
-                            error_msg = event.get("error", "Unknown error")
-                            yield {
-                                "type": "error",
-                                "error": f"[{todo_agent}] {error_msg}",
-                                "agent_name": todo_agent,
-                            }
-                            todo_result = f"Error: {error_msg}"
-
-                else:
-                    # Primary Agent 执行
-                    todo_prompt = f"{todo.get('content', message)}\n\n原始用户请求: {message}"
-
-                    # 估算输入 token
-                    estimated_input = estimate_tokens(todo_prompt)
-
-                    async for event in agent_manager.astream(todo_prompt, session_id):
-                        event_type = event.get("type", "")
-
-                        if event_type == "token":
-                            content = event.get("content", "")
-                            todo_content += content
-                            all_content += content
-                            # 附加 agent_name
-                            event["agent_name"] = "primary_agent"
-                            event["task_id"] = task_id
-                            yield event
-
-                        elif event_type in ("tool_start", "tool_end"):
-                            event["agent_name"] = "primary_agent"
-                            event["task_id"] = task_id
-                            if event_type == "tool_end":
-                                all_tool_calls.append(
-                                    {
-                                        "tool": event.get("tool", ""),
-                                        "input": event.get("input", ""),
-                                        "output": event.get("output", ""),
-                                    }
-                                )
-                                # 记录工具调用
-                                tracker.record_tool_call(
-                                    event.get("tool", "unknown"),
-                                    task_id,
-                                    "primary_agent",
-                                )
-                            yield event
-
-                        elif event_type == "new_response":
-                            event["agent_name"] = "primary_agent"
-                            yield event
-
-                        elif event_type == "done":
-                            todo_result = event.get("content", todo_content)
-                            # 记录 LLM 调用
-                            estimated_output = estimate_tokens(todo_content)
-                            tracker.record_llm_call(
-                                agent="primary_agent",
-                                input_tokens=estimated_input,
-                                output_tokens=estimated_output,
-                                task_id=task_id,
-                            )
-
-                        elif event_type == "error":
-                            event["agent_name"] = "primary_agent"
-                            yield event
-                            todo_result = f"Error: {event.get('error', '')}"
-
-                # Todo 完成
-                task_executor.update_todo_status(task_id, todo_id, "completed", todo_result)
+        # Step 5: 任务完成 - 重置所有 agent 状态为 idle
+        for agent_name in list(agent_status.keys()):
+            if agent_status[agent_name] != "idle":
+                old_st = agent_status[agent_name]
+                agent_status[agent_name] = "idle"
                 yield {
-                    "type": "todo_update",
+                    "type": "agent_status",
                     "task_id": task_id,
-                    "todo_id": todo_id,
-                    "old_status": "in_progress",
-                    "new_status": "completed",
-                    "agent": todo_agent,
-                    "result": (todo_result[:200] + "...") if len(todo_result) > 200 else todo_result,
+                    "agent_name": agent_name,
+                    "old_status": old_st,
+                    "new_status": "idle",
                 }
 
-            except Exception as e:
-                # Todo 执行失败，标记为 failed 但不中断整个流程
-                error_msg = str(e)
-                task_executor.update_todo_status(task_id, todo_id, "failed", error_msg)
-                yield {
-                    "type": "todo_update",
-                    "task_id": task_id,
-                    "todo_id": todo_id,
-                    "old_status": "in_progress",
-                    "new_status": "failed",
-                    "agent": todo_agent,
-                    "result": error_msg,
-                }
-
-            # 恢复 agent 状态
-            agent_status[todo_agent] = "idle"
-            yield {
-                "type": "agent_status",
-                "task_id": task_id,
-                "agent_name": todo_agent,
-                "old_status": "busy",
-                "new_status": "idle",
-            }
-
-            # 限频发送 stats_update（每个 todo 完成后强制发送）
-            stats = tracker.get_task_stats(task_id)
-            if stats:
-                yield {
-                    "type": "stats_update",
-                    "task_id": task_id,
-                    **stats,
-                }
-                last_stats_time = time.time()
-
-        # Step 4: 任务完成
         task_executor.complete_task(task_id, all_content[:500] if all_content else "")
-
         final_stats = tracker.get_task_stats(task_id)
         yield {
             "type": "task_complete",
@@ -281,57 +359,98 @@ async def _multi_agent_generator(
             "final_stats": final_stats,
         }
 
-        # 保存消息到 session
         agent_manager.session_manager.save_message(session_id, "user", message)
         agent_manager.session_manager.save_message(
             session_id, "assistant", all_content, all_tool_calls if all_tool_calls else None
         )
 
-        # 发送 done 事件（保持与单Agent模式一致）
-        yield {
-            "type": "done",
-            "content": all_content,
-            "session_id": session_id,
-            "tool_calls": all_tool_calls,
-        }
+        yield {"type": "done", "content": all_content, "session_id": session_id, "tool_calls": all_tool_calls}
 
-        # 首条消息自动生成标题
         if is_first_message:
             try:
                 title = await agent_manager.generate_title(message)
                 agent_manager.session_manager.update_title(session_id, title)
-                yield {
-                    "type": "title",
-                    "session_id": session_id,
-                    "title": title,
-                }
+                yield {"type": "title", "session_id": session_id, "title": title}
             except Exception:
                 pass
 
     except Exception as e:
-        # 整体任务失败
         task_executor.fail_task(task_id, str(e))
-        yield {
-            "type": "error",
-            "error": f"多Agent任务执行失败: {str(e)}",
-            "task_id": task_id,
-        }
+        yield {"type": "error", "error": f"多Agent任务执行失败: {str(e)}", "task_id": task_id}
 
 
 async def event_generator(message: str, session_id: str, is_first_message: bool):
     """
     SSE 事件生成器
 
-    根据多Agent模式和策略分析结果，选择执行路径：
-    - 多Agent模式 + MULTI策略 → _multi_agent_generator()
-    - 其他情况 → 原有单Agent流程
+    执行路径优先级：
+    1. /plan 命令 → Prometheus 规划模式
+    2. 技能匹配 → 注入技能提示后单Agent执行
+    3. 多Agent模式 + MULTI策略 → _multi_agent_generator()（支持并行）
+    4. 其他情况 → 原有单Agent流程
 
     Args:
         message: 用户消息
         session_id: 会话ID
         is_first_message: 是否为首条消息
     """
-    # 检查多Agent模式
+    hook_manager = get_hook_manager()
+
+    # 触发 UserPromptSubmit 钩子
+    if hook_manager:
+        prompt_ctx = await hook_manager.trigger(
+            HookType.USER_PROMPT_SUBMIT,
+            {"message": message, "session_id": session_id, "base_dir": str(BASE_DIR)},
+        )
+        # 如果钩子注入了上下文，附加到消息中
+        injected = prompt_ctx.get("injected_context", "")
+        if injected:
+            message = f"{message}\n{injected}"
+
+    # 上下文窗口检查
+    context_monitor = get_context_monitor()
+    if context_monitor:
+        history = agent_manager.session_manager.load_session(session_id)
+        ctx_check = context_monitor.check(session_id, history)
+        if ctx_check["action"] == "compress":
+            yield f"data: {json.dumps({'type': 'context_warning', 'status': ctx_check['status'], 'usage_ratio': ctx_check['usage_ratio'], 'message': ctx_check['message']}, ensure_ascii=False)}\n\n"
+        elif ctx_check["action"] == "warn":
+            yield f"data: {json.dumps({'type': 'context_warning', 'status': ctx_check['status'], 'usage_ratio': ctx_check['usage_ratio'], 'message': ctx_check['message']}, ensure_ascii=False)}\n\n"
+
+    # 路径1: Prometheus 规划模式
+    prometheus = get_prometheus()
+    if prometheus and (message.startswith("/plan ") or prometheus.is_plan_mode(session_id)):
+        plan_message = message[6:] if message.startswith("/plan ") else message
+
+        if not prometheus.is_plan_mode(session_id):
+            prometheus.enter_plan_mode(session_id)
+            yield f"data: {json.dumps({'type': 'prometheus_enter', 'message': '已进入 Prometheus 规划模式'}, ensure_ascii=False)}\n\n"
+
+        result = await prometheus.chat(plan_message, session_id)
+
+        # 发送 Prometheus 回复
+        yield f"data: {json.dumps({'type': 'token', 'content': result['response'], 'source': 'prometheus'}, ensure_ascii=False)}\n\n"
+
+        if result.get("plan"):
+            yield f"data: {json.dumps({'type': 'plan_generated', 'plan': result['plan']}, ensure_ascii=False)}\n\n"
+            prometheus.exit_plan_mode(session_id)
+
+        yield f"data: {json.dumps({'type': 'done', 'content': result['response'], 'session_id': session_id, 'tool_calls': []}, ensure_ascii=False)}\n\n"
+
+        # 保存到 session
+        agent_manager.session_manager.save_message(session_id, "user", message)
+        agent_manager.session_manager.save_message(session_id, "assistant", result["response"])
+
+        if is_first_message:
+            try:
+                title = await agent_manager.generate_title(message)
+                agent_manager.session_manager.update_title(session_id, title)
+                yield f"data: {json.dumps({'type': 'title', 'session_id': session_id, 'title': title}, ensure_ascii=False)}\n\n"
+            except Exception:
+                pass
+        return
+
+    # 路径2: 检查多Agent模式
     multi_agent_mode = get_multi_agent_mode()
 
     if multi_agent_mode:
@@ -340,13 +459,20 @@ async def event_generator(message: str, session_id: str, is_first_message: bool)
             plan = await planner.plan_execution(message)
 
             if plan.strategy == "multi":
-                # 多Agent执行路径
+                # 多Agent执行路径（支持并行）
                 async for event in _multi_agent_generator(message, session_id, plan, is_first_message):
                     yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
                 return
             else:
                 # 单Agent但仍发送策略信息
                 yield f"data: {json.dumps({'type': 'strategy_decided', 'strategy': 'single', 'task_type': None, 'target_agent': None, 'confidence': plan.confidence, 'reason': plan.reason, 'sub_tasks': None}, ensure_ascii=False)}\n\n"
+
+    # 路径3: 技能匹配增强
+    skill_manager = get_skill_manager()
+    if skill_manager:
+        matched_skill = skill_manager.match(message)
+        if matched_skill:
+            yield f"data: {json.dumps({'type': 'skill_matched', 'skill': matched_skill.name, 'description': matched_skill.description}, ensure_ascii=False)}\n\n"
 
     # ============ 原有单Agent流程（完全不变） ============
     # 记录响应段

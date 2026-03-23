@@ -254,7 +254,14 @@ async def edit_global_memory(request: GlobalMemoryRequest):
         # 创建通知，通知所有Agent
         coordinator = get_coordination_manager()
         if coordinator:
-            for agent_name in ["primary_agent", "coordinator_agent", "data_agent", "doc_agent"]:
+            for agent_name in [
+                "primary_agent",
+                "coordinator_agent",
+                "code_agent",
+                "research_agent",
+                "creative_agent",
+                "data_agent",
+            ]:
                 coordinator.create_notice(
                     notice_type="memory_update",
                     target_agent=agent_name,

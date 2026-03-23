@@ -34,20 +34,48 @@ class TaskDispatcher:
     # 任务类型关键词映射
     TASK_KEYWORDS = {
         "data_processing": ["数据", "分析", "统计", "计算", "表格", "csv", "excel", "可视化", "图表"],
-        "document_analysis": ["文档", "pdf", "word", "解析", "提取", "摘要", "格式转换"],
+        "code_task": ["代码", "编程", "调试", "bug", "实现", "开发", "重构", "测试", "code", "debug", "编写程序"],
+        "research_task": ["调研", "搜索", "查询", "检索", "了解", "research", "查找", "资料", "文档解析", "pdf", "word"],
+        "creative_task": ["撰写", "写作", "翻译", "文案", "文档", "报告", "方案", "内容创作", "润色"],
     }
 
-    # Domain Agent 配置
-    DOMAIN_AGENTS = {
+    # Agent 配置（通用 + 领域）
+    AGENT_CONFIGS = {
+        # 通用智能体
+        "code_agent": {
+            "task_types": ["code_task", "code_generation", "code_review", "debugging", "testing", "refactoring"],
+            "enabled_tools": ["python_repl", "terminal", "read_file", "write_file"],
+            "workspace": "workspace/universal_agents/code_agent/",
+        },
+        "research_agent": {
+            "task_types": [
+                "research_task",
+                "web_research",
+                "information_extraction",
+                "fact_checking",
+                "document_parsing",
+                "report_generation",
+            ],
+            "enabled_tools": ["fetch_url", "read_file", "write_file", "python_repl", "search_knowledge_base"],
+            "workspace": "workspace/universal_agents/research_agent/",
+        },
+        "creative_agent": {
+            "task_types": [
+                "creative_task",
+                "content_writing",
+                "copywriting",
+                "translation",
+                "document_generation",
+                "creative_design",
+            ],
+            "enabled_tools": ["read_file", "write_file", "python_repl"],
+            "workspace": "workspace/universal_agents/creative_agent/",
+        },
+        # 领域智能体
         "data_agent": {
             "task_types": ["data_processing", "data_analysis", "table_processing", "visualization"],
             "enabled_tools": ["python_repl", "read_file", "write_file"],
             "workspace": "workspace/domain_agents/data_agent/",
-        },
-        "doc_agent": {
-            "task_types": ["document_analysis", "document_parsing", "content_extraction", "format_conversion"],
-            "enabled_tools": ["python_repl", "read_file", "write_file"],
-            "workspace": "workspace/domain_agents/doc_agent/",
         },
     }
 
@@ -73,7 +101,7 @@ class TaskDispatcher:
             for keyword in keywords:
                 if keyword in message_lower:
                     # 找到匹配的Agent
-                    for agent_name, config in self.DOMAIN_AGENTS.items():
+                    for agent_name, config in self.AGENT_CONFIGS.items():
                         if task_type.replace("_", "") in [t.replace("_", "") for t in config["task_types"]]:
                             return {
                                 "need_dispatch": True,
@@ -113,8 +141,8 @@ class TaskDispatcher:
             except Exception:
                 return ""
 
-        # Agent 工作目录
-        agent_workspace = self.base_dir / "workspace" / "domain_agents" / agent_name
+        # Agent 工作目录（支持 universal_agents / domain_agents / 顶层）
+        agent_workspace = self._resolve_agent_workspace(agent_name)
 
         # 1. 全局行为准则
         global_agents = read_file(
@@ -150,30 +178,51 @@ class TaskDispatcher:
 
         return "\n\n".join(parts)
 
-    def _resolve_agent_config(self, agent_name: str) -> Dict[str, Any]:
+    def _resolve_agent_workspace(self, agent_name: str) -> Path:
         """
-        Dynamically resolve agent config from coordinator + workspace.
+        Resolve Agent workspace directory path.
 
-        Falls back to DOMAIN_AGENTS hardcoded config if agent not found.
+        Search order: AGENT_CONFIGS -> universal_agents -> domain_agents -> top-level
         """
         # Check hardcoded config first
-        if agent_name in self.DOMAIN_AGENTS:
-            return self.DOMAIN_AGENTS[agent_name]
+        if agent_name in self.AGENT_CONFIGS:
+            return self.base_dir / self.AGENT_CONFIGS[agent_name]["workspace"]
+
+        # Dynamic search
+        for subdir in ("universal_agents", "domain_agents"):
+            candidate = self.base_dir / "workspace" / subdir / agent_name
+            if candidate.exists():
+                return candidate
+
+        # Top-level fallback
+        return self.base_dir / "workspace" / agent_name
+
+    def _resolve_agent_config(self, agent_name: str) -> Dict[str, Any]:
+        """
+        Dynamically resolve agent config from AGENT_CONFIGS + coordinator + workspace.
+
+        Falls back to default tools if agent not found in config.
+        """
+        # Check hardcoded config first
+        if agent_name in self.AGENT_CONFIGS:
+            return self.AGENT_CONFIGS[agent_name]
 
         # Dynamic resolution for newly created agents
         coordinator = get_coordination_manager()
         agent_info = coordinator.get_agent_status(agent_name) if coordinator else None
 
+        workspace = str(self._resolve_agent_workspace(agent_name)).replace(str(self.base_dir) + "/", "")
+
         if agent_info:
             return {
                 "enabled_tools": ["python_repl", "read_file", "write_file"],
-                "workspace": f"workspace/domain_agents/{agent_name}/",
+                "workspace": workspace + "/",
             }
 
         # Ultimate fallback
         return {
             "enabled_tools": ["python_repl", "read_file", "write_file"],
-            "workspace": f"workspace/domain_agents/{agent_name}/",
+            "workspace": workspace + "/",
         }
 
     def get_domain_agent_tools(self, agent_name: str) -> List:
@@ -432,6 +481,21 @@ def init_task_dispatcher(base_dir: Path, llm=None) -> TaskDispatcher:
 def get_task_dispatcher() -> Optional[TaskDispatcher]:
     """获取任务分发器单例"""
     return _task_dispatcher
+
+
+# 工具函数：判断是否需要分发
+def should_dispatch_to_domain_agent(message: str) -> Dict[str, Any]:
+    """
+    判断消息是否需要分发给 Domain Agent
+
+    Args:
+        message: 用户消息
+
+    Returns:
+        分析结果
+    """
+    dispatcher = TaskDispatcher(Path("."))
+    return dispatcher.analyze_task(message)
 
 
 # 工具函数：判断是否需要分发

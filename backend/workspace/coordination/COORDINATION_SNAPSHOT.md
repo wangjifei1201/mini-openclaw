@@ -4,7 +4,7 @@
 
 ## 更新时间
 
-2026-03-22 20:46:11
+2026-03-23 17:37:18
 
 ## Agent状态
 
@@ -12,8 +12,10 @@
 |-------|------|------|----------|
 | primary_agent | primary | running | - |
 | coordinator_agent | coordinator | running | - |
+| code_agent | universal | idle | - |
+| research_agent | universal | idle | None |
+| creative_agent | universal | idle | - |
 | data_agent | domain | idle | - |
-| doc_agent | domain | idle | None |
 
 ## 任务队列
 

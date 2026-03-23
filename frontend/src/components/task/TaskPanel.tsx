@@ -1,10 +1,24 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Users, Clock, Activity, CheckCircle } from 'lucide-react'
+import { X, Users, Clock, Activity, CheckCircle, RefreshCw } from 'lucide-react'
 import TaskStats, { type TaskStatsData } from './TaskStats'
 import TodoList, { type TodoItem } from './TodoList'
 import SubTaskCard, { type SubTaskData } from './SubTaskCard'
+import ParallelIndicator from './ParallelIndicator'
+
+export interface ContinuationEvent {
+  todoId: string
+  agent: string
+  message: string
+  timestamp: number
+}
+
+export interface ParallelGroupInfo {
+  indices: number[]
+  type: string
+  agents: string[]
+}
 
 export interface TaskPanelData {
   taskId: string
@@ -14,6 +28,9 @@ export interface TaskPanelData {
   todos: TodoItem[]
   subtasks: SubTaskData[]
   agentStatus: Record<string, 'idle' | 'processing' | 'completed' | 'failed'>
+  parallelGroups?: ParallelGroupInfo[]
+  activeParallelGroup?: number[]
+  continuationEvents?: ContinuationEvent[]
 }
 
 interface TaskPanelProps {
@@ -81,6 +98,34 @@ export default function TaskPanel({ task, onClose }: TaskPanelProps) {
         <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-700">
           <TodoList todos={task.todos} />
         </div>
+
+        {/* 并行执行分组 */}
+        {task.parallelGroups && task.parallelGroups.length > 0 && (
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-700">
+            <ParallelIndicator
+              groups={task.parallelGroups}
+              activeGroup={task.activeParallelGroup}
+              totalTodos={task.todos.length}
+            />
+          </div>
+        )}
+
+        {/* 续推进事件 */}
+        {task.continuationEvents && task.continuationEvents.length > 0 && (
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-700">
+            <div className="space-y-1.5">
+              {task.continuationEvents.map((evt, idx) => (
+                <div key={idx} className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-2.5 py-2 border border-amber-200 dark:border-amber-800">
+                  <RefreshCw size={12} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-[11px] text-amber-700 dark:text-amber-300">
+                    <span className="font-medium">{evt.agent}</span>
+                    <span className="text-amber-500 dark:text-amber-400"> - {evt.message}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 执行统计 */}
         <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-700">

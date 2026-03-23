@@ -10,8 +10,10 @@ const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp
 const agentShortNames: Record<string, string> = {
   primary_agent: 'Primary',
   coordinator_agent: 'Coord',
+  code_agent: 'Code',
+  research_agent: 'Research',
+  creative_agent: 'Creative',
   data_agent: 'Data',
-  doc_agent: 'Doc',
 }
 
 const agentDotColor: Record<string, string> = {

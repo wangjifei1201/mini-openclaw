@@ -304,7 +304,7 @@ def _generate_initial_todos(message: str) -> List[dict]:
                 "id": f"todo_{todo_id}",
                 "content": "解析文档内容",
                 "status": "pending",
-                "agent": "doc_agent",
+                "agent": "research_agent",
             }
         )
         todo_id += 1
@@ -313,7 +313,7 @@ def _generate_initial_todos(message: str) -> List[dict]:
                 "id": f"todo_{todo_id}",
                 "content": "提取关键信息",
                 "status": "pending",
-                "agent": "doc_agent",
+                "agent": "research_agent",
             }
         )
         todo_id += 1

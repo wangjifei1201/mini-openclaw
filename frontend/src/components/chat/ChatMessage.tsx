@@ -5,11 +5,12 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
-import { User, Bot, FileText, Image as ImageIcon } from 'lucide-react'
+import { User, Bot, FileText, Image as ImageIcon, Sparkles } from 'lucide-react'
 import { Message } from '@/lib/store'
 import ThoughtChain from './ThoughtChain'
 import RetrievalCard from './RetrievalCard'
 import StrategyIndicator from './StrategyIndicator'
+import PlanView from './PlanView'
 
 interface ChatMessageProps {
   message: Message
@@ -87,10 +88,22 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         {!isUser && message.strategy && (
           <StrategyIndicator strategy={message.strategy} compact />
         )}
+        {/* 技能匹配徽章 */}
+        {!isUser && message.matchedSkill && (
+          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 mt-1">
+            <Sparkles size={10} />
+            <span>{message.matchedSkill.name}</span>
+          </div>
+        )}
       </div>
       
       {/* 消息内容 */}
       <div className={`flex-1 max-w-[85%] md:max-w-[80%] ${isUser ? 'text-right' : ''}`}>
+        {/* 规划视图 */}
+        {!isUser && message.plan && (
+          <PlanView plan={message.plan} />
+        )}
+        
         {/* 检索结果 */}
         {message.retrievals && message.retrievals.length > 0 && (
           <RetrievalCard retrievals={message.retrievals} />

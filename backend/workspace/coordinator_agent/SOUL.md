@@ -25,7 +25,10 @@
 # 任务类型 → Agent映射
 task_type_mapping = {
     "data_processing": "data_agent",
-    "document_analysis": "doc_agent",
+    "code_task": "code_agent",
+    "research_task": "research_agent",
+    "creative_task": "creative_agent",
+    "document_analysis": "research_agent",
     # 可扩展
 }
 ```

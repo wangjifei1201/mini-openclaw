@@ -88,6 +88,19 @@ export type StreamEventType =
   | 'agent_status'
   | 'stats_update'
   | 'task_complete'
+  // 并行执行事件
+  | 'parallel_analysis'
+  | 'parallel_start'
+  | 'parallel_end'
+  // 上下文窗口事件
+  | 'context_warning'
+  // Prometheus 规划事件
+  | 'prometheus_enter'
+  | 'plan_generated'
+  // 技能匹配事件
+  | 'skill_matched'
+  // 续推进事件
+  | 'continuation_enforced'
 
 export interface StreamEvent {
   type: StreamEventType

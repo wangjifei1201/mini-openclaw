@@ -45,11 +45,29 @@ mini-openclaw/
 │   ├── config.py           # 全局配置
 │   ├── api/                # API 路由层
 │   ├── graph/              # Agent 核心逻辑
-│   │   └── strategy_selector.py  # 策略选择器（单/多Agent判断）
+│   │   ├── coordinator.py      # 协同管理器
+│   │   ├── task_executor.py    # 任务执行器
+│   │   ├── task_dispatcher.py  # 任务分发器
+│   │   ├── llm_task_planner.py # LLM任务规划器
+│   │   ├── strategy_selector.py  # 策略选择器
+│   │   ├── capability_dispatcher.py  # 能力调度器
+│   │   ├── prometheus.py       # Prometheus规划智能体
+│   │   ├── hooks.py            # 生命周期钩子系统
+│   │   ├── parallel_executor.py # 并行任务执行器
+│   │   └── context_manager.py  # 上下文窗口管理
 │   ├── tools/              # 5 个核心工具
-│   ├── workspace/          # System Prompts
-│   ├── memory/             # 长期记忆
 │   ├── skills/             # Agent Skills
+│   │   └── skill_manager.py    # 技能管理器
+│   ├── workspace/          # Agent 工作空间
+│   │   ├── primary_agent/      # 主交互Agent
+│   │   ├── coordinator_agent/  # 协同管理Agent
+│   │   ├── universal_agents/   # 通用智能体团队
+│   │   │   ├── code_agent/     # 代码开发Agent
+│   │   │   ├── research_agent/ # 信息检索Agent
+│   │   │   └── creative_agent/ # 内容创作Agent
+│   │   ├── domain_agents/      # 领域专用Agent
+│   │   │   └── data_agent/     # 数据分析Agent（示例）
+│   │   └── global_memory/      # 全局记忆
 │   ├── knowledge/          # 知识库文档
 │   └── sessions/           # 会话存储
 │
@@ -244,6 +262,13 @@ System Prompt 由以下 6 部分动态拼接：
 ### 快速体验地址
 [Omni-OpenClaw](http://82.157.98.72:5004/)
 
+## 许可证
+
+MIT License
+
+---
+
+由 [wangjifei](http://82.157.98.72:5004/) 提供技术支持
 ## 许可证
 
 MIT License

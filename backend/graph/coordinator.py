@@ -63,15 +63,33 @@ class CoordinationManager:
                 "status": "running",
                 "skills": ["status_query", "agent_dispatch"],
             },
+            # ---- 通用智能体团队 (universal) ----
+            "code_agent": {
+                "type": "universal",
+                "status": "idle",
+                "skills": ["code_generation", "code_review", "debugging", "testing", "refactoring"],
+            },
+            "research_agent": {
+                "type": "universal",
+                "status": "idle",
+                "skills": [
+                    "web_research",
+                    "information_extraction",
+                    "fact_checking",
+                    "document_parsing",
+                    "report_generation",
+                ],
+            },
+            "creative_agent": {
+                "type": "universal",
+                "status": "idle",
+                "skills": ["content_writing", "copywriting", "translation", "document_generation", "creative_design"],
+            },
+            # ---- 领域智能体 (domain) ----
             "data_agent": {
                 "type": "domain",
                 "status": "idle",
                 "skills": ["data_analysis", "table_processing", "visualization"],
-            },
-            "doc_agent": {
-                "type": "domain",
-                "status": "idle",
-                "skills": ["document_parsing", "content_extraction", "format_conversion"],
             },
         }
 
@@ -124,16 +142,20 @@ class CoordinationManager:
         """
         根据任务类型匹配Agent（基于skills动态匹配）
 
+        优先匹配 domain > universal > primary
+
         Args:
             task_type: 任务类型
 
         Returns:
             匹配的Agent名称，无匹配返回None
         """
-        for name, info in self._agents.items():
-            if info.get("type") == "domain" and task_type in info.get("skills", []):
-                if info.get("status") in ["idle", "running"]:
-                    return name
+        # 优先级：domain > universal
+        for priority_type in ("domain", "universal"):
+            for name, info in self._agents.items():
+                if info.get("type") == priority_type and task_type in info.get("skills", []):
+                    if info.get("status") in ["idle", "running"]:
+                        return name
         return None
 
     def create_task(
