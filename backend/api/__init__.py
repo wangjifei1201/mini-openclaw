@@ -8,6 +8,7 @@ from .tokens import router as tokens_router
 from .compress import router as compress_router
 from .config_api import router as config_router
 from .skills import router as skills_router
+from .memories import router as memories_router
 
 __all__ = [
     "chat_router",
@@ -17,4 +18,5 @@ __all__ = [
     "compress_router",
     "config_router",
     "skills_router",
+    "memories_router",
 ]

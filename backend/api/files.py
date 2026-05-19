@@ -131,7 +131,7 @@ async def save_file(request: SaveFileRequest):
     """
     保存文件内容
     
-    保存 memory/MEMORY.md 时会自动触发索引重建
+    保存 memory/MEMORY.md 或 memory/memories.jsonl 时会自动触发索引重建
     """
     if not is_path_allowed(request.path):
         raise HTTPException(status_code=403, detail="Access denied: path not allowed")
@@ -144,8 +144,8 @@ async def save_file(request: SaveFileRequest):
     try:
         file_path.write_text(request.content, encoding="utf-8")
         
-        # 如果是 MEMORY.md，触发索引重建
-        if request.path == "memory/MEMORY.md":
+        # 如果是记忆文件，触发索引重建
+        if request.path in {"memory/MEMORY.md", "memory/memories.jsonl"}:
             try:
                 agent_manager.memory_indexer.rebuild_index()
             except Exception:

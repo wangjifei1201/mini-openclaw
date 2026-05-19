@@ -26,6 +26,7 @@ from api import (
     compress_router,
     config_router,
     skills_router,
+    memories_router,
 )
 
 
@@ -37,7 +38,7 @@ async def lifespan(app: FastAPI):
     启动时执行三步初始化：
     1. scan_skills() → 扫描 skills/**/SKILL.md，生成 SKILLS_SNAPSHOT.md
     2. agent_manager.initialize() → 创建 LLM 实例，注册工具
-    3. memory_indexer.rebuild_index() → 构建 MEMORY.md 向量索引
+    3. memory_indexer.rebuild_index() → 构建结构化记忆向量索引
     """
     print("=" * 50)
     print("Mini-OpenClaw 启动中...")
@@ -64,9 +65,9 @@ async def lifespan(app: FastAPI):
     print("[3/3] 构建记忆索引...")
     try:
         if agent_manager.memory_indexer.rebuild_index():
-            print("      MEMORY.md 索引已构建")
+            print("      结构化记忆索引已构建")
         else:
-            print("      MEMORY.md 为空或不存在，跳过索引构建")
+            print("      结构化记忆为空或不存在，跳过索引构建")
     except Exception as e:
         print(f"      索引构建失败: {e}")
     
@@ -105,6 +106,7 @@ app.include_router(tokens_router, prefix="/api", tags=["Tokens"])
 app.include_router(compress_router, prefix="/api", tags=["Compress"])
 app.include_router(config_router, prefix="/api", tags=["Config"])
 app.include_router(skills_router, prefix="/api", tags=["Skills"])
+app.include_router(memories_router, prefix="/api", tags=["Memories"])
 
 # 挂载静态文件目录 - outputs 文件夹可直接访问
 outputs_dir = BASE_DIR / "outputs"
