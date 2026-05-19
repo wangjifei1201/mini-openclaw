@@ -6,6 +6,7 @@ import sys
 import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))
@@ -32,12 +33,13 @@ fastapi.HTTPException = Exception
 fastapi.Query = lambda *args, **kwargs: None
 fastapi.UploadFile = object
 fastapi.File = lambda *args, **kwargs: None
-sys.modules["fastapi"] = fastapi
-
-spec = importlib.util.spec_from_file_location("files_api", BACKEND_DIR / "api" / "files.py")
-files_api = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(files_api)
+with patch.dict(sys.modules, {"fastapi": fastapi}):
+    spec = importlib.util.spec_from_file_location("files_api", BACKEND_DIR / "api" / "files.py")
+    files_api = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(files_api)
 validate_upload_file = files_api.validate_upload_file
+sys.modules.pop("tools.skills_scanner", None)
+sys.modules.pop("tools", None)
 
 
 class UploadFileValidationTest(unittest.TestCase):
