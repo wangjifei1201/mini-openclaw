@@ -9,16 +9,52 @@ import sys
 from collections import defaultdict
 
 
-def build_key_index(table: dict, primary_key: list) -> dict:
-    """根据主键构建 key → row 的映射"""
+def format_key_dict(primary_key: list, key) -> dict:
+    """将内部 key 转成 {主键列: 值}。"""
+    if len(primary_key) == 1:
+        return {primary_key[0]: key}
+    return {col: key[i] for i, col in enumerate(primary_key)}
+
+
+def make_key(row: dict, primary_key: list):
+    """根据主键从行数据生成稳定 key。"""
+    key = tuple(str(row.get(col, "")) for col in primary_key)
+    if len(primary_key) == 1:
+        return key[0]
+    return key
+
+
+def sort_key(value):
+    """对字符串/组合 key 做稳定排序。"""
+    if isinstance(value, tuple):
+        return tuple(str(v) for v in value)
+    return (str(value),)
+
+
+def build_key_index(table: dict, primary_key: list, side: str = "table") -> dict:
+    """根据主键构建 key → row 的映射；发现重复主键时返回错误。"""
     index = {}
+    duplicates = []
+    duplicate_seen = set()
+
     for row in table["data"]:
-        key = tuple(str(row.get(col, "")) for col in primary_key)
-        # 单列主键时直接用值，方便展示
-        if len(primary_key) == 1:
-            key = key[0]
+        key = make_key(row, primary_key)
+        if key in index:
+            if key not in duplicate_seen:
+                duplicates.append(format_key_dict(primary_key, key))
+                duplicate_seen.add(key)
+            continue
         index[key] = row
-    return index
+
+    if duplicates:
+        return {
+            "error": "duplicate_primary_key",
+            "message": f"{side} 表存在重复主键，请更换主键或清洗数据后重试",
+            "side": side,
+            "duplicates": duplicates[:20],
+        }
+
+    return {"index": index}
 
 
 def normalize_value(val, case_sensitive: bool = False, null_equals_empty: bool = True):
@@ -80,6 +116,97 @@ def get_dtypes_map(table: dict) -> dict:
     return {col["name"]: col["dtype"] for col in table["meta"]["columns"]}
 
 
+def diff_by_position(left: dict, right: dict, rules: dict, compare_columns: list, left_dtypes: dict, right_dtypes: dict) -> dict:
+    """按行号逐行比对，用于 ignore_order=false。"""
+    tolerance = rules.get("tolerance", {})
+    case_sensitive = rules.get("case_sensitive", False)
+    null_equals_empty = rules.get("null_equals_empty", True)
+    primary_key = rules.get("primary_key", [])
+
+    diffs = []
+    column_change_counts = defaultdict(int)
+    matched_count = min(len(left["data"]), len(right["data"]))
+    value_changed_count = 0
+    unchanged_count = 0
+
+    for idx in range(matched_count):
+        left_row = left["data"][idx]
+        right_row = right["data"][idx]
+        changes = []
+
+        columns_to_check = list(primary_key) + compare_columns
+        for col in columns_to_check:
+            l_val = left_row.get(col)
+            r_val = right_row.get(col)
+            if not values_equal(
+                l_val, r_val, col, tolerance,
+                case_sensitive, null_equals_empty,
+                left_dtypes.get(col), right_dtypes.get(col)
+            ):
+                changes.append({
+                    "column": col,
+                    "left_value": _serialize(l_val),
+                    "right_value": _serialize(r_val),
+                })
+                column_change_counts[col] += 1
+
+        if changes:
+            diffs.append({
+                "type": "value_changed",
+                "row_number": idx + 1,
+                "primary_key": {col: left_row.get(col) for col in primary_key},
+                "changes": changes,
+            })
+            value_changed_count += 1
+        else:
+            unchanged_count += 1
+
+    for idx in range(matched_count, len(left["data"])):
+        row = left["data"][idx]
+        diffs.append({
+            "type": "left_only",
+            "row_number": idx + 1,
+            "primary_key": {col: row.get(col) for col in primary_key},
+            "row_data": {k: v for k, v in row.items() if k not in primary_key},
+        })
+
+    for idx in range(matched_count, len(right["data"])):
+        row = right["data"][idx]
+        diffs.append({
+            "type": "right_only",
+            "row_number": idx + 1,
+            "primary_key": {col: row.get(col) for col in primary_key},
+            "row_data": {k: v for k, v in row.items() if k not in primary_key},
+        })
+
+    column_diff_summary = {}
+    for col in list(primary_key) + compare_columns:
+        changed = column_change_counts.get(col, 0)
+        rate = round(changed / matched_count, 4) if matched_count > 0 else 0
+        if changed > 0:
+            column_diff_summary[col] = {
+                "changed_count": changed,
+                "change_rate": rate,
+            }
+
+    return {
+        "comparison_mode": "order_sensitive",
+        "compare_columns": compare_columns,
+        "summary": {
+            "total_left": len(left["data"]),
+            "total_right": len(right["data"]),
+            "matched": matched_count,
+            "left_only": max(len(left["data"]) - matched_count, 0),
+            "right_only": max(len(right["data"]) - matched_count, 0),
+            "value_changed": value_changed_count,
+            "unchanged": unchanged_count,
+            "change_rate": round(value_changed_count / matched_count, 4) if matched_count > 0 else 0,
+        },
+        "diffs": diffs,
+        "column_diff_summary": column_diff_summary,
+    }
+
+
 def diff(left: dict, right: dict, rules: dict) -> dict:
     """执行比对"""
     primary_key = rules.get("primary_key", [])
@@ -107,13 +234,6 @@ def diff(left: dict, right: dict, rules: dict) -> dict:
     if not left.get("data") or not right.get("data"):
         return {"error": "empty_data", "message": "表数据为空"}
 
-    # === 建立映射 ===
-    left_index = build_key_index(left, primary_key)
-    right_index = build_key_index(right, primary_key)
-
-    left_keys = set(left_index.keys())
-    right_keys = set(right_index.keys())
-
     # === 确定比对列 ===
     compare_columns = sorted(
         left_col_names & right_col_names - set(primary_key) - set(ignore_columns)
@@ -121,6 +241,23 @@ def diff(left: dict, right: dict, rules: dict) -> dict:
 
     left_dtypes = get_dtypes_map(left)
     right_dtypes = get_dtypes_map(right)
+
+    if ignore_order is False:
+        return diff_by_position(left, right, rules, compare_columns, left_dtypes, right_dtypes)
+
+    # === 建立映射 ===
+    left_index_result = build_key_index(left, primary_key, "left")
+    if left_index_result.get("error"):
+        return left_index_result
+    right_index_result = build_key_index(right, primary_key, "right")
+    if right_index_result.get("error"):
+        return right_index_result
+
+    left_index = left_index_result["index"]
+    right_index = right_index_result["index"]
+
+    left_keys = set(left_index.keys())
+    right_keys = set(right_index.keys())
 
     # === 行级分类 ===
     matched_keys = left_keys & right_keys
@@ -131,7 +268,7 @@ def diff(left: dict, right: dict, rules: dict) -> dict:
     column_change_counts = defaultdict(int)
 
     # --- left_only ---
-    for key in left_only_keys:
+    for key in sorted(left_only_keys, key=sort_key):
         row = left_index[key]
         pk_dict = _extract_pk(row, primary_key, key)
         diffs.append({
@@ -141,7 +278,7 @@ def diff(left: dict, right: dict, rules: dict) -> dict:
         })
 
     # --- right_only ---
-    for key in right_only_keys:
+    for key in sorted(right_only_keys, key=sort_key):
         row = right_index[key]
         pk_dict = _extract_pk(row, primary_key, key)
         diffs.append({
@@ -154,7 +291,7 @@ def diff(left: dict, right: dict, rules: dict) -> dict:
     value_changed_count = 0
     unchanged_count = 0
 
-    for key in matched_keys:
+    for key in sorted(matched_keys, key=sort_key):
         left_row = left_index[key]
         right_row = right_index[key]
 
@@ -203,7 +340,11 @@ def diff(left: dict, right: dict, rules: dict) -> dict:
                 "change_rate": rate
             }
 
+    diffs = sorted(diffs, key=lambda item: sort_key(tuple(item.get("primary_key", {}).values())))
+
     return {
+        "comparison_mode": "key_based",
+        "compare_columns": compare_columns,
         "summary": {
             "total_left": total_left,
             "total_right": total_right,

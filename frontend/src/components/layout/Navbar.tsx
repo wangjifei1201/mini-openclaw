@@ -19,20 +19,9 @@ export default function Navbar() {
         <div className="w-8 h-8 bg-klein-blue rounded-lg flex items-center justify-center">
           <span className="text-white font-bold text-sm">O</span>
         </div>
-        <span className="font-semibold text-lg text-gray-800 hidden sm:block">Omin OpenClaw</span>
-        <span className="font-semibold text-base text-gray-800 sm:hidden">OpenClaw</span>
+        <span className="font-semibold text-lg text-gray-800 hidden sm:block">BaseClaw</span>
+        <span className="font-semibold text-base text-gray-800 sm:hidden">BaseClaw</span>
       </div>
-      
-      {/* 右侧链接 */}
-      <a
-        href="https://github.com/wangjifei1201/mini-openclaw"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1 text-sm text-gray-600 hover:text-klein-blue transition-colors"
-      >
-        wangjifei
-        <ExternalLink size={14} />
-      </a>
     </nav>
   )
 }

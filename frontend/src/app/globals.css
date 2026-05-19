@@ -85,39 +85,98 @@ code {
 /* Markdown 样式 */
 .markdown-content {
   word-break: break-word;
+  line-height: 1.6;
+}
+
+.markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.markdown-content > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 1rem 0 0.5rem;
 }
 
 .markdown-content h1 {
   font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
 }
 
 .markdown-content h2 {
   font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 0.75rem;
 }
 
 .markdown-content h3 {
   font-size: 1.125rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
+}
+
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  font-size: 1rem;
 }
 
 .markdown-content p {
   margin-bottom: 0.75rem;
-  line-height: 1.6;
+}
+
+.markdown-content strong {
+  font-weight: 700;
+}
+
+.markdown-content em {
+  font-style: italic;
+}
+
+.markdown-content del {
+  text-decoration: line-through;
+}
+
+.markdown-content a {
+  text-underline-offset: 2px;
+}
+
+.markdown-content a:hover {
+  opacity: 0.8;
+}
+
+.markdown-content hr {
+  border: 0;
+  border-top: 1px solid var(--apple-border);
+  margin: 1rem 0;
 }
 
 .markdown-content ul,
 .markdown-content ol {
   margin-bottom: 0.75rem;
   padding-left: 1.5rem;
+  text-align: left;
+}
+
+.markdown-content ul {
+  list-style: disc;
+}
+
+.markdown-content ol {
+  list-style: decimal;
 }
 
 .markdown-content li {
   margin-bottom: 0.25rem;
+}
+
+.markdown-content li > ul,
+.markdown-content li > ol {
+  margin: 0.25rem 0 0;
 }
 
 .markdown-content blockquote {
@@ -125,6 +184,65 @@ code {
   padding-left: 1rem;
   margin: 1rem 0;
   color: #666;
+}
+
+.markdown-content table {
+  width: max-content;
+  min-width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.875rem;
+  text-align: left;
+  table-layout: auto;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid var(--apple-border);
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+  max-width: 16rem;
+  overflow-wrap: anywhere;
+}
+
+.markdown-content th {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+
+.markdown-content tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+.markdown-content pre {
+  margin: 0.75rem 0;
+}
+
+.markdown-content pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+.markdown-content :not(pre) > code {
+  white-space: nowrap;
+}
+
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.markdown-content details {
+  margin: 0.75rem 0;
+}
+
+.markdown-content summary {
+  cursor: pointer;
+  font-weight: 600;
 }
 
 /* 拖拽分隔条 */

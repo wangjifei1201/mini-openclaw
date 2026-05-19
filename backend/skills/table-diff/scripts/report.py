@@ -4,9 +4,53 @@ diff-reporter: 差异报告生成器
 支持 HTML 和 Excel 两种格式
 """
 
+import csv
+import html
 import json
-import os
-import sys
+
+
+def escape_html(value) -> str:
+    """HTML 安全展示。"""
+    if value is None:
+        return ""
+    return html.escape(str(value), quote=True)
+
+
+def markdown_escape(value) -> str:
+    """Markdown 表格单元格安全展示。"""
+    if value is None:
+        return ""
+    return (
+        html.escape(str(value), quote=True)
+        .replace("|", "\\|")
+        .replace("\r", "<br>")
+        .replace("\n", "<br>")
+    )
+
+
+def spreadsheet_safe_value(value) -> str:
+    """Prevent CSV/Excel formula execution for untrusted cell values."""
+    if value is None:
+        return ""
+    text = str(value)
+    if text.lstrip().startswith(("=", "+", "-", "@")):
+        return f"'{text}"
+    return text
+
+
+def stable_json(value) -> str:
+    """Stable readable JSON serialization for row data."""
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+
+
+def csv_value(value) -> str:
+    """CSV 展示并防止公式注入。"""
+    return spreadsheet_safe_value(value)
+
+
+def primary_key_label(primary_key: dict) -> str:
+    """主键字典展示为 key=value / key=value。"""
+    return " / ".join(f"{k}={v}" for k, v in primary_key.items())
 
 try:
     import openpyxl
@@ -84,10 +128,10 @@ h2 {{ font-size: 16px; font-weight: 600; margin: 20px 0 12px; color: #1a1a1a; }}
 
 <h2>差异明细</h2>
 <div class="filters">
-  <button class="active" onclick="filter('all')">全部</button>
-  <button onclick="filter('value_changed')">值变化</button>
-  <button onclick="filter('left_only')">仅左表</button>
-  <button onclick="filter('right_only')">仅右表</button>
+  <button class="active" onclick="filter(event, 'all')">全部</button>
+  <button onclick="filter(event, 'value_changed')">值变化</button>
+  <button onclick="filter(event, 'left_only')">仅左表</button>
+  <button onclick="filter(event, 'right_only')">仅右表</button>
 </div>
 <div class="diff-table">
   {detail_html}
@@ -95,7 +139,7 @@ h2 {{ font-size: 16px; font-weight: 600; margin: 20px 0 12px; color: #1a1a1a; }}
 
 </div>
 <script>
-function filter(type) {{
+function filter(event, type) {{
   document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
   event.target.classList.add('active');
   document.querySelectorAll('.diff-row').forEach(row => {{
@@ -111,23 +155,23 @@ function filter(type) {{
 </html>"""
 
 
-def generate_overview_html(summary: dict, left_meta: dict, right_meta: dict) -> str:
+def generate_overview_html(summary: dict) -> str:
     """生成概览区 HTML"""
     rate_pct = f"{summary['change_rate'] * 100:.1f}%"
     return f"""
 <div class="overview">
-  <div class="card"><div class="label">左表行数</div><div class="value blue">{summary['total_left']}</div></div>
-  <div class="card"><div class="label">右表行数</div><div class="value blue">{summary['total_right']}</div></div>
-  <div class="card"><div class="label">匹配行数</div><div class="value">{summary['matched']}</div></div>
-  <div class="card"><div class="label">值变化行</div><div class="value accent">{summary['value_changed']}</div></div>
-  <div class="card"><div class="label">仅左表</div><div class="value accent">{summary['left_only']}</div></div>
-  <div class="card"><div class="label">仅右表</div><div class="value green">{summary['right_only']}</div></div>
-  <div class="card"><div class="label">未变更行</div><div class="value">{summary['unchanged']}</div></div>
-  <div class="card"><div class="label">变更率</div><div class="value accent">{rate_pct}</div></div>
+  <div class="card"><div class="label">左表行数</div><div class="value blue">{escape_html(summary['total_left'])}</div></div>
+  <div class="card"><div class="label">右表行数</div><div class="value blue">{escape_html(summary['total_right'])}</div></div>
+  <div class="card"><div class="label">匹配行数</div><div class="value">{escape_html(summary['matched'])}</div></div>
+  <div class="card"><div class="label">值变化行</div><div class="value accent">{escape_html(summary['value_changed'])}</div></div>
+  <div class="card"><div class="label">仅左表</div><div class="value accent">{escape_html(summary['left_only'])}</div></div>
+  <div class="card"><div class="label">仅右表</div><div class="value green">{escape_html(summary['right_only'])}</div></div>
+  <div class="card"><div class="label">未变更行</div><div class="value">{escape_html(summary['unchanged'])}</div></div>
+  <div class="card"><div class="label">变更率</div><div class="value accent">{escape_html(rate_pct)}</div></div>
 </div>"""
 
 
-def generate_col_summary_html(col_diff: dict, matched: int) -> str:
+def generate_col_summary_html(col_diff: dict) -> str:
     """生成列级摘要 HTML"""
     if not col_diff:
         return ""
@@ -138,9 +182,9 @@ def generate_col_summary_html(col_diff: dict, matched: int) -> str:
         bar_width = max(4, int(info["change_rate"] * 200))
         rows += f"""
     <tr>
-      <td>{col}</td>
-      <td>{info['changed_count']}</td>
-      <td>{rate_pct}</td>
+      <td>{escape_html(col)}</td>
+      <td>{escape_html(info['changed_count'])}</td>
+      <td>{escape_html(rate_pct)}</td>
       <td><span class="bar" style="width:{bar_width}px"></span></td>
     </tr>"""
 
@@ -155,10 +199,10 @@ def generate_col_summary_html(col_diff: dict, matched: int) -> str:
 
 
 def _val_display(val) -> str:
-    """值展示"""
+    """值展示。"""
     if val is None:
         return "<em style='color:#999'>空</em>"
-    return str(val)
+    return escape_html(val)
 
 
 def generate_detail_html(diffs: list, primary_key_cols: list, all_compare_cols: list) -> str:
@@ -170,7 +214,7 @@ def generate_detail_html(diffs: list, primary_key_cols: list, all_compare_cols: 
     for col in all_compare_cols:
         headers.append(f"右表·{col}")
 
-    thead = "<tr>" + "".join(f"<th>{h}</th>" for h in headers) + "</tr>"
+    thead = "<tr>" + "".join(f"<th>{escape_html(h)}</th>" for h in headers) + "</tr>"
 
     tbody = ""
     for d in diffs:
@@ -178,7 +222,6 @@ def generate_detail_html(diffs: list, primary_key_cols: list, all_compare_cols: 
         pk = d["primary_key"]
 
         if dtype == "value_changed":
-            row_class = ""
             badge = f'<span class="type-badge badge-changed">变化</span>'
             changes = {c["column"]: c for c in d["changes"]}
             changed_cols = set(changes.keys())
@@ -195,7 +238,7 @@ def generate_detail_html(diffs: list, primary_key_cols: list, all_compare_cols: 
                     right_cells.append(f'<td>-</td>')
 
             pk_cells = "".join(f"<td>{_val_display(pk.get(c))}</td>" for c in primary_key_cols)
-            tbody += f'<tr class="diff-row" data-type="value_changed">{row_class}<td>{badge}</td>{pk_cells}{"".join(left_cells)}{"".join(right_cells)}</tr>'
+            tbody += f'<tr class="diff-row" data-type="value_changed"><td>{badge}</td>{pk_cells}{"".join(left_cells)}{"".join(right_cells)}</tr>'
 
         elif dtype == "left_only":
             badge = '<span class="type-badge badge-left">仅左表</span>'
@@ -237,8 +280,8 @@ def generate_html_report(diff_result: dict, left_meta: dict, right_meta: dict) -
             all_cols_set.update(d.get("row_data", {}).keys())
     all_compare_cols = sorted(all_cols_set - set(primary_key_cols))
 
-    overview_html = generate_overview_html(summary, left_meta, right_meta)
-    col_summary_html = generate_col_summary_html(col_diff, summary["matched"])
+    overview_html = generate_overview_html(summary)
+    col_summary_html = generate_col_summary_html(col_diff)
     detail_html = generate_detail_html(diffs, primary_key_cols, all_compare_cols)
 
     return HTML_TEMPLATE.format(
@@ -246,6 +289,83 @@ def generate_html_report(diff_result: dict, left_meta: dict, right_meta: dict) -
         col_summary_html=col_summary_html,
         detail_html=detail_html
     )
+
+
+
+def generate_markdown_report(diff_result: dict, left_meta: dict, right_meta: dict) -> str:
+    """生成 Markdown 报告。"""
+    summary = diff_result["summary"]
+    col_diff = diff_result.get("column_diff_summary", {})
+    diffs = diff_result.get("diffs", [])
+    change_rate = f"{summary['change_rate'] * 100:.1f}%"
+
+    lines = [
+        "# 表格比对报告",
+        "",
+        "## 基本信息",
+        "",
+        "| 项目 | 左表 | 右表 |",
+        "|---|---:|---:|",
+        f"| 文件 | {markdown_escape(left_meta.get('source_file', ''))} | {markdown_escape(right_meta.get('source_file', ''))} |",
+        f"| 行数 | {summary['total_left']} | {summary['total_right']} |",
+        "",
+        "## 摘要",
+        "",
+        "| 指标 | 数值 |",
+        "|---|---:|",
+        f"| 匹配行数 | {summary['matched']} |",
+        f"| 值变化行 | {summary['value_changed']} |",
+        f"| 仅左表行 | {summary['left_only']} |",
+        f"| 仅右表行 | {summary['right_only']} |",
+        f"| 未变更行 | {summary['unchanged']} |",
+        f"| 变更率 | {change_rate} |",
+        "",
+    ]
+
+    if col_diff:
+        lines.extend([
+            "## 列级变更摘要",
+            "",
+            "| 列名 | 变更次数 | 变更率 |",
+            "|---|---:|---:|",
+        ])
+        for col, info in sorted(col_diff.items(), key=lambda x: -x[1]["change_rate"]):
+            lines.append(f"| {markdown_escape(col)} | {info['changed_count']} | {info['change_rate'] * 100:.1f}% |")
+        lines.append("")
+
+    lines.extend([
+        "## 差异明细",
+        "",
+        "| 类型 | 主键 | 行号 | 列名 | 左表值 | 右表值 |",
+        "|---|---|---:|---|---|---|",
+    ])
+
+    for item in diffs:
+        dtype = item["type"]
+        type_label = {"value_changed": "值变化", "left_only": "仅左表", "right_only": "仅右表"}.get(dtype, dtype)
+        pk = markdown_escape(primary_key_label(item.get("primary_key", {})))
+        row_number = markdown_escape(item.get("row_number", ""))
+
+        if dtype == "value_changed":
+            for change in item.get("changes", []):
+                lines.append(
+                    f"| {type_label} | {pk} | {row_number} | {markdown_escape(change['column'])} | {markdown_escape(change.get('left_value'))} | {markdown_escape(change.get('right_value'))} |"
+                )
+        elif dtype == "left_only":
+            row_json = stable_json(item.get('row_data', {}))
+            lines.append(f"| {type_label} | {pk} | {row_number} | 整行 | {markdown_escape(row_json)} |  |")
+        elif dtype == "right_only":
+            row_json = stable_json(item.get('row_data', {}))
+            lines.append(f"| {type_label} | {pk} | {row_number} | 整行 |  | {markdown_escape(row_json)} |")
+
+    lines.extend([
+        "",
+        "## 总结",
+        "",
+        f"本次比对匹配 {summary['matched']} 行，其中 {summary['value_changed']} 行存在值变化，{summary['left_only']} 行仅左表存在，{summary['right_only']} 行仅右表存在。",
+    ])
+
+    return "\n".join(lines)
 
 
 # ============================================================
@@ -268,7 +388,6 @@ def generate_excel_report(diff_result: dict, left_meta: dict, right_meta: dict, 
     header_fill = PatternFill("solid", fgColor="457B9D")
     red_fill = PatternFill("solid", fgColor="FFE0E0")
     green_fill = PatternFill("solid", fgColor="D4EDDA")
-    yellow_fill = PatternFill("solid", fgColor="FFF3CD")
     thin_border = Border(
         left=Side(style="thin", color="DDDDDD"),
         right=Side(style="thin", color="DDDDDD"),
@@ -318,7 +437,7 @@ def generate_excel_report(diff_result: dict, left_meta: dict, right_meta: dict, 
             overview_data.append([col, info["changed_count"], f"{info['change_rate'] * 100:.1f}%"])
 
     for row in overview_data:
-        ws1.append(row)
+        ws1.append([spreadsheet_safe_value(value) for value in row])
     style_header(ws1, 3)
     auto_width(ws1)
 
@@ -329,7 +448,7 @@ def generate_excel_report(diff_result: dict, left_meta: dict, right_meta: dict, 
         if d["type"] == "value_changed":
             pk_str = " / ".join(str(v) for v in d["primary_key"].values())
             for change in d["changes"]:
-                ws2.append([pk_str, change["column"], change["left_value"], change["right_value"]])
+                ws2.append([spreadsheet_safe_value(value) for value in [pk_str, change["column"], change["left_value"], change["right_value"]]])
                 # 变化值标色
                 row_idx = ws2.max_row
                 ws2.cell(row=row_idx, column=3).fill = red_fill
@@ -342,10 +461,10 @@ def generate_excel_report(diff_result: dict, left_meta: dict, right_meta: dict, 
     right_only_diffs = [d for d in diffs if d["type"] == "right_only"]
     if right_only_diffs:
         cols = list(right_only_diffs[0].get("primary_key", {}).keys()) + list(right_only_diffs[0].get("row_data", {}).keys())
-        ws3.append(cols)
+        ws3.append([spreadsheet_safe_value(col) for col in cols])
         for d in right_only_diffs:
             row_vals = list(d["primary_key"].values()) + list(d["row_data"].values())
-            ws3.append([str(v) if v is not None else "" for v in row_vals])
+            ws3.append([spreadsheet_safe_value(v) for v in row_vals])
             for i in range(1, len(row_vals) + 1):
                 ws3.cell(row=ws3.max_row, column=i).fill = green_fill
     style_header(ws3, max(len(cols), 1) if right_only_diffs else 1)
@@ -356,10 +475,10 @@ def generate_excel_report(diff_result: dict, left_meta: dict, right_meta: dict, 
     left_only_diffs = [d for d in diffs if d["type"] == "left_only"]
     if left_only_diffs:
         cols = list(left_only_diffs[0].get("primary_key", {}).keys()) + list(left_only_diffs[0].get("row_data", {}).keys())
-        ws4.append(cols)
+        ws4.append([spreadsheet_safe_value(col) for col in cols])
         for d in left_only_diffs:
             row_vals = list(d["primary_key"].values()) + list(d["row_data"].values())
-            ws4.append([str(v) if v is not None else "" for v in row_vals])
+            ws4.append([spreadsheet_safe_value(v) for v in row_vals])
             for i in range(1, len(row_vals) + 1):
                 ws4.cell(row=ws4.max_row, column=i).fill = red_fill
     style_header(ws4, max(len(cols), 1) if left_only_diffs else 1)
@@ -385,7 +504,7 @@ def generate_excel_report(diff_result: dict, left_meta: dict, right_meta: dict, 
         headers.append(f"左·{col}")
     for col in all_compare_cols:
         headers.append(f"右·{col}")
-    ws5.append(headers)
+    ws5.append([spreadsheet_safe_value(header) for header in headers])
 
     for d in diffs:
         dtype = d["type"]
@@ -413,7 +532,7 @@ def generate_excel_report(diff_result: dict, left_meta: dict, right_meta: dict, 
             for col in all_compare_cols:
                 row.append(rd.get(col, ""))
 
-        row = [str(v) if v is not None else "" for v in row]
+        row = [spreadsheet_safe_value(v) for v in row]
         ws5.append(row)
 
         # 标色
@@ -440,6 +559,47 @@ def generate_excel_report(diff_result: dict, left_meta: dict, right_meta: dict, 
     return output_path
 
 
+def generate_csv_report(diff_result: dict, output_path: str) -> str:
+    """生成机器可读 CSV 明细。"""
+    diffs = diff_result.get("diffs", [])
+    with open(output_path, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["type", "primary_key", "row_number", "column", "left_value", "right_value"])
+        writer.writeheader()
+        for item in diffs:
+            dtype = item["type"]
+            pk = csv_value(primary_key_label(item.get("primary_key", {})))
+            row_number = csv_value(item.get("row_number", ""))
+            if dtype == "value_changed":
+                for change in item.get("changes", []):
+                    writer.writerow({
+                        "type": csv_value(dtype),
+                        "primary_key": pk,
+                        "row_number": row_number,
+                        "column": csv_value(change.get("column")),
+                        "left_value": csv_value(change.get("left_value")),
+                        "right_value": csv_value(change.get("right_value")),
+                    })
+            elif dtype == "left_only":
+                writer.writerow({
+                    "type": csv_value(dtype),
+                    "primary_key": pk,
+                    "row_number": row_number,
+                    "column": csv_value("__row__"),
+                    "left_value": csv_value(stable_json(item.get("row_data", {}))),
+                    "right_value": "",
+                })
+            elif dtype == "right_only":
+                writer.writerow({
+                    "type": csv_value(dtype),
+                    "primary_key": pk,
+                    "row_number": row_number,
+                    "column": csv_value("__row__"),
+                    "left_value": "",
+                    "right_value": csv_value(stable_json(item.get("row_data", {}))),
+                })
+    return output_path
+
+
 # ============================================================
 # 统一入口
 # ============================================================
@@ -451,17 +611,30 @@ def report(diff_result: dict, left_meta: dict, right_meta: dict,
         return json.dumps({"error": "invalid_diff_result", "message": "差异结果格式非法"})
 
     if format == "html":
-        html = generate_html_report(diff_result, left_meta, right_meta)
+        html_text = generate_html_report(diff_result, left_meta, right_meta)
         if output_path:
             with open(output_path, "w", encoding="utf-8") as f:
-                f.write(html)
+                f.write(html_text)
             return output_path
-        return html
+        return html_text
 
-    elif format == "excel":
+    elif format in ("excel", "xlsx"):
         if not output_path:
             return json.dumps({"error": "output_required", "message": "Excel 格式必须指定 output_path"})
         return generate_excel_report(diff_result, left_meta, right_meta, output_path)
+
+    elif format in ("markdown", "md"):
+        markdown_text = generate_markdown_report(diff_result, left_meta, right_meta)
+        if output_path:
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(markdown_text)
+            return output_path
+        return markdown_text
+
+    elif format == "csv":
+        if not output_path:
+            return json.dumps({"error": "output_required", "message": "CSV 格式必须指定 output_path"})
+        return generate_csv_report(diff_result, output_path)
 
     else:
         return json.dumps({"error": "unsupported_format", "message": f"不支持的格式: {format}"})
@@ -474,10 +647,12 @@ if __name__ == "__main__":
     parser.add_argument("diff_file", help="差异结果 JSON 文件路径")
     parser.add_argument("--left-meta", required=True, help="左表 meta JSON 文件路径")
     parser.add_argument("--right-meta", required=True, help="右表 meta JSON 文件路径")
-    parser.add_argument("--format", choices=["html", "excel"], required=True, help="输出格式")
+    parser.add_argument("--format", choices=["html", "excel", "xlsx", "markdown", "md", "csv"], required=True, help="输出格式")
     parser.add_argument("--output", default=None, help="输出文件路径")
 
     args = parser.parse_args()
+    if args.format in ("csv", "xlsx", "excel") and not args.output:
+        parser.error("--output is required for csv/xlsx/excel formats")
 
     with open(args.diff_file, "r", encoding="utf-8") as f:
         diff_result = json.load(f)
@@ -487,7 +662,7 @@ if __name__ == "__main__":
         right_meta = json.load(f)
 
     result = report(diff_result, left_meta, right_meta, args.format, args.output)
-    if args.format == "html" and not args.output:
+    if args.format in ("html", "markdown", "md") and not args.output:
         print(result)
     else:
         print(f"报告已生成: {result}")

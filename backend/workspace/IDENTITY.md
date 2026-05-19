@@ -2,7 +2,7 @@
 
 ## 基本信息
 
-- **名称**: Mini-OpenClaw
+- **名称**: BaseClaw
 - **版本**: 1.0.0
 - **类型**: 轻量级 AI Agent 系统
 - **创建者**: wangjifei

@@ -124,7 +124,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         
         {/* 消息气泡 */}
         <div
-          className={`inline-block p-2 md:p-3 rounded-2xl text-sm md:text-base ${
+          className={`block w-full min-w-0 p-2 md:p-3 rounded-2xl text-sm md:text-base overflow-hidden ${
             isUser
               ? 'bg-klein-blue text-white rounded-tr-sm'
               : 'bg-white shadow-sm rounded-tl-sm'
@@ -188,6 +188,13 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                     }
                     
                     return <p>{children}</p>
+                  },
+                  table({ children }) {
+                    return (
+                      <div className="my-3 max-w-full overflow-x-auto">
+                        <table>{children}</table>
+                      </div>
+                    )
                   },
                   // 链接样式
                   a({ children, ...props }) {

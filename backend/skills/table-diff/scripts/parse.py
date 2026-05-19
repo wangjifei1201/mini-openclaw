@@ -8,6 +8,7 @@ import csv
 import json
 import os
 import sys
+from datetime import date, datetime, time
 from pathlib import Path
 
 try:
@@ -26,6 +27,32 @@ def detect_encoding(file_path: str) -> str:
         except (UnicodeDecodeError, UnicodeError):
             continue
     return "utf-8"
+
+
+def serialize_cell_value(value):
+    """将单元格值转换为 JSON 安全的中间值"""
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, (date, time)):
+        return value.isoformat()
+    return str(value)
+
+
+def coerce_csv_value(value):
+    """转换 CSV 字符串值，保持既有数值推断行为"""
+    if value is None:
+        return None
+    val = value.strip()
+    if val == "":
+        return None
+    try:
+        if "." in val:
+            return float(val)
+        return int(val)
+    except ValueError:
+        return val
 
 
 def infer_dtype(values: list) -> str:
@@ -70,42 +97,13 @@ def infer_dtype(values: list) -> str:
     return "string"
 
 
-def parse_xlsx(file_path: str, sheet_name: str = None, max_rows: int = 1000) -> dict:
-    """解析 .xlsx 文件"""
-    if openpyxl is None:
-        return {"error": "dependency_missing", "message": "openpyxl 未安装，请执行 pip install openpyxl"}
-
-    wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
-    sheets = wb.sheetnames
-
-    if sheet_name:
-        if sheet_name not in sheets:
-            wb.close()
-            return {"error": "sheet_not_found", "message": f"Sheet '{sheet_name}' 不存在", "available_sheets": sheets}
-        ws = wb[sheet_name]
-    else:
-        ws = wb[sheets[0]]
-        sheet_name = sheets[0]
-
-    rows = list(ws.iter_rows(values_only=True))
-    wb.close()
-
-    if not rows:
-        return {"error": "empty_file", "message": "文件内容为空"}
-
-    # 第一行作为表头
-    headers = [str(h) if h is not None else f"column_{i}" for i, h in enumerate(rows[0])]
-    data_rows = rows[1:max_rows]
-
-    # 跳过全空行
-    data_rows = [r for r in data_rows if any(v is not None for v in r)]
-
-    # 按列组织数据
+def build_table_result(file_path: str, sheet_name: str, headers: list, data_rows: list) -> dict:
+    """根据已截取的数据行构建统一返回结构"""
     col_data = {h: [] for h in headers}
     for row in data_rows:
         for i, h in enumerate(headers):
             val = row[i] if i < len(row) else None
-            col_data[h].append(val)
+            col_data[h].append(serialize_cell_value(val))
 
     # 构建列元信息
     columns_meta = []
@@ -117,12 +115,12 @@ def parse_xlsx(file_path: str, sheet_name: str = None, max_rows: int = 1000) -> 
         sample_values = unique_vals[:3]
 
         columns_meta.append({
-            "name": h,
+            "name": serialize_cell_value(h),
             "index": i,
             "dtype": infer_dtype(non_null),
             "null_count": null_count,
             "unique_count": len(unique_vals),
-            "sample_values": sample_values
+            "sample_values": [serialize_cell_value(v) for v in sample_values]
         })
 
     # 构建数据行
@@ -131,19 +129,57 @@ def parse_xlsx(file_path: str, sheet_name: str = None, max_rows: int = 1000) -> 
         row_dict = {}
         for i, h in enumerate(headers):
             val = row[i] if i < len(row) else None
-            row_dict[h] = val
+            row_dict[h] = serialize_cell_value(val)
         data.append(row_dict)
 
     return {
         "meta": {
             "source_file": os.path.basename(file_path),
-            "sheet_name": sheet_name,
+            "sheet_name": serialize_cell_value(sheet_name),
             "row_count": len(data_rows),
             "col_count": len(headers),
             "columns": columns_meta
         },
         "data": data
     }
+
+
+def parse_xlsx(file_path: str, sheet_name: str = None, max_rows: int = 1000) -> dict:
+    """解析 .xlsx 文件"""
+    if openpyxl is None:
+        return {"error": "dependency_missing", "message": "openpyxl 未安装，请执行 pip install openpyxl"}
+
+    wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+    try:
+        sheets = wb.sheetnames
+
+        if sheet_name:
+            if sheet_name not in sheets:
+                return {"error": "sheet_not_found", "message": f"Sheet '{sheet_name}' 不存在", "available_sheets": sheets}
+            ws = wb[sheet_name]
+        else:
+            ws = wb[sheets[0]]
+            sheet_name = sheets[0]
+
+        row_iter = ws.iter_rows(values_only=True)
+        header_row = next(row_iter, None)
+        if header_row is None:
+            return {"error": "empty_file", "message": "文件内容为空"}
+
+        # 第一行作为表头
+        headers = [str(h) if h is not None else f"column_{i}" for i, h in enumerate(header_row)]
+        data_rows = []
+        for row in row_iter:
+            # 跳过全空行，不计入 max_rows
+            if not any(v is not None for v in row):
+                continue
+            data_rows.append(tuple(serialize_cell_value(v) for v in row))
+            if len(data_rows) >= max_rows:
+                break
+    finally:
+        wb.close()
+
+    return build_table_result(file_path, sheet_name, headers, data_rows)
 
 
 def parse_csv(file_path: str, max_rows: int = 1000) -> dict:
@@ -152,82 +188,21 @@ def parse_csv(file_path: str, max_rows: int = 1000) -> dict:
 
     with open(file_path, "r", encoding=encoding) as f:
         reader = csv.reader(f)
-        rows = list(reader)
+        header_row = next(reader, None)
+        if header_row is None:
+            return {"error": "empty_file", "message": "文件内容为空"}
 
-    if not rows:
-        return {"error": "empty_file", "message": "文件内容为空"}
+        headers = [str(h).strip() if h.strip() else f"column_{i}" for i, h in enumerate(header_row)]
+        data_rows = []
+        for row in reader:
+            # 跳过全空行，不计入 max_rows
+            if not any(v.strip() for v in row if v):
+                continue
+            data_rows.append(tuple(serialize_cell_value(coerce_csv_value(row[i])) if i < len(row) else None for i in range(len(headers))))
+            if len(data_rows) >= max_rows:
+                break
 
-    headers = [str(h).strip() if h.strip() else f"column_{i}" for i, h in enumerate(rows[0])]
-    data_rows = rows[1:max_rows + 1]
-
-    # 跳过全空行
-    data_rows = [r for r in data_rows if any(v.strip() for v in r if v)]
-
-    # 按列组织数据
-    col_data = {h: [] for h in headers}
-    for row in data_rows:
-        for i, h in enumerate(headers):
-            val = row[i].strip() if i < len(row) else None
-            # 数值转换
-            if val == "" or val is None:
-                val = None
-            else:
-                try:
-                    if "." in val:
-                        val = float(val)
-                    else:
-                        val = int(val)
-                except ValueError:
-                    pass
-            col_data[h].append(val)
-
-    # 构建列元信息
-    columns_meta = []
-    for i, h in enumerate(headers):
-        values = col_data[h]
-        non_null = [v for v in values if v is not None and v != ""]
-        null_count = len(values) - len(non_null)
-        unique_vals = list(set(str(v) for v in non_null))
-        sample_values = unique_vals[:3]
-
-        columns_meta.append({
-            "name": h,
-            "index": i,
-            "dtype": infer_dtype(non_null),
-            "null_count": null_count,
-            "unique_count": len(unique_vals),
-            "sample_values": sample_values
-        })
-
-    # 构建数据行
-    data = []
-    for row in data_rows:
-        row_dict = {}
-        for i, h in enumerate(headers):
-            val = row[i].strip() if i < len(row) else None
-            if val == "":
-                val = None
-            else:
-                try:
-                    if "." in val:
-                        val = float(val)
-                    else:
-                        val = int(val)
-                except ValueError:
-                    pass
-            row_dict[h] = val
-        data.append(row_dict)
-
-    return {
-        "meta": {
-            "source_file": os.path.basename(file_path),
-            "sheet_name": None,
-            "row_count": len(data_rows),
-            "col_count": len(headers),
-            "columns": columns_meta
-        },
-        "data": data
-    }
+    return build_table_result(file_path, None, headers, data_rows)
 
 
 def parse(file_path: str, sheet_name: str = None, max_rows: int = 1000) -> dict:
