@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 file-parser: 解析表格文件，提取结构元信息和数据内容
-支持格式：.xlsx, .csv
+支持格式：.xlsx, .xls, .csv
 """
 
 import csv
@@ -192,6 +192,39 @@ def parse_xlsx(file_path: str, sheet_name: str = None, max_rows: int = 1000) -> 
     return build_table_result(file_path, sheet_name, headers, data_rows)
 
 
+def parse_xls(file_path: str, sheet_name: str = None, max_rows: int = 1000) -> dict:
+    """解析 .xls 文件"""
+    if xlrd is None:
+        return {"error": "dependency_missing", "message": "xlrd 未安装，请执行 pip install xlrd"}
+
+    wb = xlrd.open_workbook(file_path)
+    sheets = wb.sheet_names()
+
+    if sheet_name:
+        if sheet_name not in sheets:
+            return {"error": "sheet_not_found", "message": f"Sheet '{sheet_name}' 不存在", "available_sheets": sheets}
+        ws = wb.sheet_by_name(sheet_name)
+    else:
+        ws = wb.sheet_by_index(0)
+        sheet_name = sheets[0]
+
+    if ws.nrows == 0:
+        return {"error": "empty_file", "message": "文件内容为空"}
+
+    headers = [str(h) if h not in (None, "") else f"column_{i}" for i, h in enumerate(ws.row_values(0))]
+    data_rows = []
+    for row_index in range(1, ws.nrows):
+        row = ws.row_values(row_index)
+        normalized_row = [None if v == "" else serialize_cell_value(v) for v in row]
+        if not any(v is not None for v in normalized_row):
+            continue
+        data_rows.append(tuple(normalized_row))
+        if len(data_rows) >= max_rows:
+            break
+
+    return build_table_result(file_path, sheet_name, headers, data_rows)
+
+
 def parse_csv(file_path: str, max_rows: int = 1000) -> dict:
     """解析 .csv 文件"""
     encoding = detect_encoding(file_path)
@@ -223,10 +256,12 @@ def parse(file_path: str, sheet_name: str = None, max_rows: int = 1000) -> dict:
     ext = Path(file_path).suffix.lower()
     if ext == ".xlsx":
         return parse_xlsx(file_path, sheet_name, max_rows)
+    elif ext == ".xls":
+        return parse_xls(file_path, sheet_name, max_rows)
     elif ext == ".csv":
         return parse_csv(file_path, max_rows)
     else:
-        return {"error": "unsupported_format", "message": f"不支持的格式: {ext}，仅支持 .xlsx 和 .csv"}
+        return {"error": "unsupported_format", "message": f"不支持的格式: {ext}，仅支持 .xlsx、.xls 和 .csv"}
 
 
 if __name__ == "__main__":
@@ -235,7 +270,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="表格文件解析器")
     parser.add_argument("file_path", help="文件路径")
-    parser.add_argument("--sheet", default=None, help="Sheet 名称（仅 xlsx）")
+    parser.add_argument("--sheet", default=None, help="Sheet 名称（仅 xlsx/xls）")
     parser.add_argument("--max-rows", type=int, default=1000, help="最大读取行数")
     parser.add_argument("--output", default=None, help="输出文件路径，不指定则输出到 stdout")
 
