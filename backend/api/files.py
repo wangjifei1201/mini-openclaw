@@ -45,7 +45,7 @@ ALLOWED_UPLOAD_EXTENSIONS = {
     # 图片
     ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp",
     # 文档
-    ".txt", ".md", ".pdf", ".csv", ".json", ".xml", ".yaml", ".yml",
+    ".txt", ".md", ".pdf", ".csv", ".xlsx", ".xls", ".json", ".xml", ".yaml", ".yml",
     # 代码
     ".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".go", ".rs", ".c", ".cpp", ".h",
     ".html", ".css", ".scss", ".vue", ".swift", ".kt", ".rb", ".php",
