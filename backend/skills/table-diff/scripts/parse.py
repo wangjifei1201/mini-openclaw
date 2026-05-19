@@ -16,6 +16,16 @@ try:
 except ImportError:
     openpyxl = None
 
+try:
+    import xlrd
+except ImportError:
+    xlrd = None
+
+try:
+    import xlwt
+except ImportError:
+    xlwt = None
+
 
 def detect_encoding(file_path: str) -> str:
     """检测 CSV 文件编码，UTF-8 优先，失败回退 GBK"""
