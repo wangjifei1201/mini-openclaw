@@ -1,12 +1,12 @@
 ---
 name: table-diff
-description: 对比两份表格文件并先向用户展示差异摘要。用户需要比较 xlsx 或 csv 表格、查找两份表的数据差异、分析表结构差异、识别主键、做行级或单元格级比对时使用。默认流程是先解析、分析、确认规则、执行比对，然后用 Markdown 表格 + 总结展示结果；只有用户明确要求时才生成 HTML、XLSX、Markdown 或 CSV 差异报告。
+description: 对比两份表格文件并先向用户展示差异摘要。用户需要比较 xlsx、xls 或 csv 表格、查找两份表的数据差异、分析表结构差异、识别主键、做行级或单元格级比对时使用。默认流程是先解析、分析、确认规则、执行比对，然后用 Markdown 表格 + 总结展示结果；只有用户明确要求时才生成 HTML、XLSX、Markdown 或 CSV 差异报告。
 ---
 
 # table-diff
 
 ## 功能描述
-表格比对技能。对两份表格文件执行结构分析、主键识别、行级/单元格级差异比对，并先在对话中展示差异摘要和明细预览。支持 xlsx 和 csv 输入格式，默认读取前 1000 行，可通过 `--max-rows` 调整；增大读取行数可能影响性能，缩小读取行数可能遗漏差异。不要默认生成报告文件；只有用户看过比对结果并明确要求导出时，才生成 HTML、XLSX、Markdown 或 CSV 报告。
+表格比对技能。对两份表格文件执行结构分析、主键识别、行级/单元格级差异比对，并先在对话中展示差异摘要和明细预览。支持 xlsx、xls 和 csv 输入格式，默认读取前 1000 行，可通过 `--max-rows` 调整；增大读取行数可能影响性能，缩小读取行数可能遗漏差异。不要默认生成报告文件；只有用户看过比对结果并明确要求导出时，才生成 HTML、XLSX、Markdown 或 CSV 报告。
 
 ## 触发场景
 - 用户需要比对两份表格的差异
@@ -73,12 +73,12 @@ python3 scripts/parse.py <file_path> [--sheet <name>] [--max-rows <n>] [--output
 **代码调用**：
 ```python
 from scripts.parse import parse
-result = parse(file_path="xxx.xlsx", sheet_name="Sheet1", max_rows=1000)
+result = parse(file_path="xxx.xls", sheet_name="Sheet1", max_rows=1000)
 ```
 
 **异常处理**：
 - `file_not_found` → 提示用户重新上传
-- `unsupported_format` → 提示仅支持 xlsx/csv
+- `unsupported_format` → 提示仅支持 xlsx/xls/csv
 - `empty_file` → 提示文件为空
 - `dependency_missing` → 提示安装缺失依赖（如 `pip install openpyxl`）
 - `sheet_not_found` → 提示用户重新确认 sheet 名称，并展示可用 sheet 列表
@@ -374,7 +374,7 @@ result = report(diff_result=diff_dict, left_meta=left_meta, right_meta=right_met
 
 ## 整体约束
 
-- 文件格式：仅 .xlsx 和 .csv
+- 文件格式：仅 .xlsx、.xls 和 .csv
 - 默认读取行数：单文件前 1000 行；可通过 `--max-rows` 调整，增大读取行数可能影响性能，缩小读取行数可能遗漏差异
 - 合并单元格：取左上角值，其余置空
 - 公式：取计算后的值
@@ -390,4 +390,4 @@ result = report(diff_result=diff_dict, left_meta=left_meta, right_meta=right_met
 pip install openpyxl
 ```
 
-openpyxl 仅 xlsx 解析和 Excel 报告生成时需要，csv 解析和 HTML 报告无需额外依赖。
+openpyxl 仅 xlsx 解析和 Excel 报告生成时需要，xlrd 仅 xls 解析时需要，csv 解析和 HTML 报告无需额外依赖。
