@@ -100,7 +100,11 @@ async def event_generator(
                     seg["content"],
                     seg.get("tool_calls")
                 )
-            
+
+            assistant_text = "".join(seg.get("content", "") for seg in segments)
+            if assistant_text:
+                await agent_manager.reflect_memory(message, assistant_text)
+
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
             
             # 首条消息自动生成标题
@@ -164,7 +168,9 @@ async def chat(request: ChatRequest):
         agent_manager.session_manager.save_message(
             request.session_id, "assistant", full_content, tool_calls
         )
-        
+        if full_content:
+            await agent_manager.reflect_memory(request.message, full_content)
+
         return {
             "content": full_content,
             "tool_calls": tool_calls,

@@ -13,6 +13,8 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from tools import get_all_tools
 
 from .memory_indexer import MemoryIndexer
+from .memory_reflection import MemoryReflectionService
+from .memory_store import MemoryStore
 from .prompt_builder import PromptBuilder
 from .session_manager import SessionManager
 from .streaming_adapter import StreamingToolCallAdapter
@@ -61,7 +63,9 @@ class AgentManager:
         self.tools: List = []
         self.session_manager: Optional[SessionManager] = None
         self.prompt_builder: Optional[PromptBuilder] = None
+        self.memory_store: Optional[MemoryStore] = None
         self.memory_indexer: Optional[MemoryIndexer] = None
+        self.memory_reflection: Optional[MemoryReflectionService] = None
         self._initialized = False
 
     def initialize(self, base_dir: Path) -> None:
@@ -92,8 +96,13 @@ class AgentManager:
         # 初始化 Prompt 构建器
         self.prompt_builder = PromptBuilder(base_dir)
 
-        # 初始化记忆索引器
-        self.memory_indexer = MemoryIndexer(base_dir)
+        # 初始化记忆存储、索引器与反思服务
+        self.memory_store = MemoryStore(base_dir)
+        try:
+            self.memory_indexer = MemoryIndexer(base_dir, store=self.memory_store)
+        except TypeError:
+            self.memory_indexer = MemoryIndexer(base_dir)
+        self.memory_reflection = MemoryReflectionService(store=self.memory_store, llm=self.llm)
 
         self._initialized = True
 
@@ -351,6 +360,18 @@ class AgentManager:
                 "type": "error",
                 "error": error_msg,
             }
+
+    async def reflect_memory(self, user_message: str, assistant_response: str) -> bool:
+        """在聊天完成后运行半自动记忆反思。"""
+        if not self.memory_reflection:
+            return False
+        changed = await self.memory_reflection.reflect(user_message, assistant_response)
+        if changed and self.memory_indexer:
+            try:
+                self.memory_indexer.rebuild_index()
+            except Exception as exc:
+                print(f"记忆索引重建失败: {exc}")
+        return changed
 
     async def generate_title(self, message: str) -> str:
         """
