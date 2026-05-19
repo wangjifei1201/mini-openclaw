@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from fastapi.testclient import TestClient
+
 from graph.memory_store import MemoryStore
 
 
@@ -56,20 +58,52 @@ class MemoriesApiTests(unittest.TestCase):
 
         self.assertIn("/api/memories", routes)
 
+    def test_http_get_memories_returns_store_records(self):
+        import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = MemoryStore(Path(tmpdir))
+            store.add_memory(
+                memory_type="project",
+                content="用户正在维护结构化记忆接口。",
+                source="manual",
+                confidence=0.91,
+            )
+
+            with patch("api.memories.agent_manager") as mock_agent_manager:
+                mock_agent_manager.memory_store = store
+                response = TestClient(app.app).get("/api/memories")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload["memories"]), 1)
+        memory = payload["memories"][0]
+        self.assertEqual(memory["type"], "project")
+        self.assertEqual(memory["content"], "用户正在维护结构化记忆接口。")
+        self.assertEqual(memory["status"], "active")
+        self.assertEqual(memory["source"], "manual")
+        self.assertEqual(memory["confidence"], 0.91)
+
     def test_saving_memories_jsonl_rebuilds_memory_index(self):
         from api.files import SaveFileRequest, save_file
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("api.files.BASE_DIR", Path(tmpdir)), patch("api.files.agent_manager") as mock_agent_manager:
-                mock_indexer = MagicMock()
-                mock_agent_manager.memory_indexer = mock_indexer
+        for path in ("memory/memories.jsonl", "./memory/memories.jsonl"):
+            with self.subTest(path=path), tempfile.TemporaryDirectory() as tmpdir:
+                with patch("api.files.BASE_DIR", Path(tmpdir)), patch("api.files.agent_manager") as mock_agent_manager:
+                    mock_indexer = MagicMock()
+                    mock_agent_manager.memory_indexer = mock_indexer
 
-                result = asyncio.run(
-                    save_file(SaveFileRequest(path="memory/memories.jsonl", content=""))
-                )
+                    result = asyncio.run(
+                        save_file(SaveFileRequest(path=path, content=""))
+                    )
 
-            self.assertEqual(result, {"success": True, "path": "memory/memories.jsonl"})
-            mock_indexer.rebuild_index.assert_called_once_with()
+                self.assertEqual(result, {"success": True, "path": path})
+                mock_indexer.rebuild_index.assert_called_once_with()
+
+    def test_rebuild_trigger_normalizes_slash_prefixed_memory_path(self):
+        from api.files import _memory_rebuild_trigger_path
+
+        self.assertEqual(_memory_rebuild_trigger_path("/memory/memories.jsonl"), "memory/memories.jsonl")
 
 
 if __name__ == "__main__":

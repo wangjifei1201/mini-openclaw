@@ -63,6 +63,13 @@ class SaveFileRequest(BaseModel):
     content: str
 
 
+def _memory_rebuild_trigger_path(path: str) -> str:
+    """Normalize path forms accepted by the file API for rebuild trigger comparison."""
+    if path.startswith("./"):
+        path = path[2:]
+    return path.lstrip("/")
+
+
 def is_path_allowed(path: str) -> bool:
     """
     检查路径是否在白名单中（使用路径解析防止遍历攻击）
@@ -145,7 +152,7 @@ async def save_file(request: SaveFileRequest):
         file_path.write_text(request.content, encoding="utf-8")
         
         # 如果是记忆文件，触发索引重建
-        if request.path in {"memory/MEMORY.md", "memory/memories.jsonl"}:
+        if _memory_rebuild_trigger_path(request.path) in {"memory/MEMORY.md", "memory/memories.jsonl"}:
             try:
                 agent_manager.memory_indexer.rebuild_index()
             except Exception:
