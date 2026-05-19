@@ -6,9 +6,11 @@ from pathlib import Path
 import sys
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
-sys.path.insert(0, str(SCRIPTS_DIR))
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
 
-from parse import openpyxl, parse, parse_csv
+import parse as parse_module
+from parse import openpyxl, parse, parse_csv, xlrd, xlwt
 
 
 class ParseTests(unittest.TestCase):
@@ -80,6 +82,68 @@ class ParseTests(unittest.TestCase):
         self.assertNotIn("error", result)
         self.assertEqual(result["meta"]["row_count"], 2)
         self.assertEqual([row["id"] for row in result["data"]], [1, 2])
+
+    def test_parse_xls_skips_empty_rows_and_limits_to_two_non_empty_rows(self):
+        if xlrd is None or xlwt is None:
+            self.skipTest("xlrd/xlwt is not installed")
+
+        self.assertIs(parse_module.openpyxl, openpyxl)
+        self.assertIs(parse_module.parse_csv, parse_csv)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "sample.xls"
+            workbook = xlwt.Workbook()
+            sheet = workbook.add_sheet("Sheet1")
+            rows = [
+                ["name", "score"],
+                ["alice", 91],
+                ["", ""],
+                ["bob", 88],
+                ["carol", 77],
+            ]
+
+            for row_index, row in enumerate(rows):
+                for col_index, value in enumerate(row):
+                    sheet.write(row_index, col_index, value)
+
+            workbook.save(str(path))
+            result = parse(str(path), max_rows=2)
+
+        self.assertNotIn("error", result)
+        self.assertEqual(
+            result["data"],
+            [
+                {"name": "alice", "score": 91.0},
+                {"name": "bob", "score": 88.0},
+            ],
+        )
+        self.assertEqual(result["meta"]["row_count"], 2)
+
+    def test_parse_xls_preserves_created_at_string_in_json_output(self):
+        if xlrd is None or xlwt is None:
+            self.skipTest("xlrd/xlwt is not installed")
+
+        self.assertIs(parse_module.openpyxl, openpyxl)
+        self.assertIs(parse_module.parse_csv, parse_csv)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "created-at.xls"
+            workbook = xlwt.Workbook()
+            sheet = workbook.add_sheet("Sheet1")
+            sheet.write(0, 0, "created_at")
+            sheet.write(1, 0, "2024-01-02 03:04:05")
+            workbook.save(str(path))
+
+            result = parse(str(path), max_rows=1)
+            payload = json.dumps(result, ensure_ascii=False)
+
+        self.assertNotIn("error", result)
+        self.assertEqual(result["data"][0]["created_at"], "2024-01-02 03:04:05")
+        self.assertIn("2024-01-02 03:04:05", payload)
+        self.assertIn(
+            "2024-01-02 03:04:05",
+            result["meta"]["columns"][0]["sample_values"],
+        )
 
 
 if __name__ == "__main__":
