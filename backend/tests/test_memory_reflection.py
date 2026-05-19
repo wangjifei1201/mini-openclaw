@@ -1,12 +1,16 @@
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from graph.memory_reflection import MemoryReflectionService, parse_reflection_operations
 from graph.memory_store import MemoryStore
 
 
-class MemoryReflectionTests(unittest.TestCase):
+class MemoryReflectionTests(unittest.IsolatedAsyncioTestCase):
     def test_parse_operations_accepts_valid_json_object(self):
         payload = '''
         {
@@ -58,6 +62,94 @@ class MemoryReflectionTests(unittest.TestCase):
         operations = parse_reflection_operations(payload)
 
         self.assertEqual(operations, [])
+
+    def test_parse_operations_drops_missing_required_fields(self):
+        payload = '''
+        {
+          "operations": [
+            {"action": "ADD", "type": "preference", "confidence": 0.9},
+            {"action": "UPDATE", "type": "project", "content": "缺少 ID", "confidence": 0.9},
+            {"action": "DELETE", "confidence": 0.9}
+          ]
+        }
+        '''
+
+        operations = parse_reflection_operations(payload)
+
+        self.assertEqual(operations, [])
+
+    def test_parse_operations_drops_non_numeric_and_nan_confidence(self):
+        payload = '''
+        {
+          "operations": [
+            {"action": "ADD", "type": "preference", "content": "非数字", "confidence": "high"},
+            {"action": "ADD", "type": "preference", "content": "NaN", "confidence": NaN}
+          ]
+        }
+        '''
+
+        operations = parse_reflection_operations(payload)
+
+        self.assertEqual(operations, [])
+
+    def test_parse_operations_keeps_valid_none_in_mixed_payload(self):
+        payload = '''
+        {
+          "operations": [
+            {"action": "ADD", "type": "preference", "confidence": 0.9},
+            {"action": "NONE"}
+          ]
+        }
+        '''
+
+        operations = parse_reflection_operations(payload)
+
+        self.assertEqual(operations, [{"action": "NONE"}])
+
+    async def test_reflect_invokes_llm_with_context_applies_operation_and_returns_true(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = MemoryStore(Path(tmpdir))
+            existing = store.add_memory(
+                memory_type="preference",
+                content="用户偏好简洁回答。",
+                source="manual",
+                confidence=0.9,
+            )
+            llm = SimpleNamespace(
+                ainvoke=AsyncMock(
+                    return_value=SimpleNamespace(
+                        content='''{"operations":[{"action":"ADD","type":"feedback","content":"用户确认方案可行。","confidence":0.88}]}'''
+                    )
+                )
+            )
+            service = MemoryReflectionService(store=store, llm=llm)
+
+            changed = await service.reflect("请保持简洁", "已按简洁风格回复。")
+
+            self.assertTrue(changed)
+            llm.ainvoke.assert_awaited_once()
+            messages = llm.ainvoke.await_args.args[0]
+            self.assertEqual(len(messages), 2)
+            self.assertIsInstance(messages[0], SystemMessage)
+            self.assertIsInstance(messages[1], HumanMessage)
+            human_prompt = messages[1].content
+            self.assertIn(existing["content"], human_prompt)
+            self.assertIn("请保持简洁", human_prompt)
+            self.assertIn("已按简洁风格回复。", human_prompt)
+            records = store.list_active()
+            self.assertEqual(len(records), 2)
+            self.assertEqual(records[1]["type"], "feedback")
+            self.assertEqual(records[1]["content"], "用户确认方案可行。")
+
+    async def test_reflect_returns_false_when_llm_fails(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            llm = SimpleNamespace(ainvoke=AsyncMock(side_effect=RuntimeError("LLM unavailable")))
+            service = MemoryReflectionService(store=MemoryStore(Path(tmpdir)), llm=llm)
+
+            changed = await service.reflect("用户消息", "助手回复")
+
+            self.assertFalse(changed)
+            llm.ainvoke.assert_awaited_once()
 
     def test_apply_add_update_delete_operations(self):
         with tempfile.TemporaryDirectory() as tmpdir:

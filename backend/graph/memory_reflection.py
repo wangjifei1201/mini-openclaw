@@ -2,6 +2,7 @@
 半自动记忆反思 - 从对话中提取结构化记忆操作
 """
 import json
+import math
 import re
 from typing import Any, Dict, List, Optional
 
@@ -88,7 +89,7 @@ def parse_reflection_operations(text: str) -> List[Dict[str, Any]]:
             confidence = float(confidence)
         except (TypeError, ValueError):
             continue
-        if confidence < MIN_CONFIDENCE or confidence > 1:
+        if not math.isfinite(confidence) or confidence < MIN_CONFIDENCE or confidence > 1:
             continue
 
         if action == "ADD":
