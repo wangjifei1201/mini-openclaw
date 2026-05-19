@@ -13,7 +13,9 @@ sys.path.insert(0, str(BACKEND_DIR))
 sys.modules.setdefault("graph", types.SimpleNamespace(agent_manager=object()))
 skills_scanner = types.ModuleType("tools.skills_scanner")
 skills_scanner.scan_skills = lambda skills_dir: []
-sys.modules.setdefault("tools", types.ModuleType("tools"))
+tools_package = types.ModuleType("tools")
+tools_package.__path__ = [str(BACKEND_DIR / "tools")]
+sys.modules.setdefault("tools", tools_package)
 sys.modules["tools.skills_scanner"] = skills_scanner
 
 
