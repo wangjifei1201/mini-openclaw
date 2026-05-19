@@ -96,24 +96,20 @@ class MemoryStore:
             return []
 
         records = []
-        try:
-            with self.memory_file.open("r", encoding="utf-8") as f:
-                for line_number, line in enumerate(f, 1):
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        record = json.loads(line)
-                    except json.JSONDecodeError as exc:
-                        print(f"跳过无效记忆 JSONL 行 {line_number}: {exc}")
-                        continue
-                    if not self._is_valid_record(record):
-                        print(f"跳过无效记忆记录 {line_number}: {record}")
-                        continue
-                    records.append(record)
-        except Exception as exc:
-            print(f"读取结构化记忆失败: {exc}")
-            return []
+        with self.memory_file.open("r", encoding="utf-8") as f:
+            for line_number, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    print(f"跳过无效记忆 JSONL 行 {line_number}: {exc}")
+                    continue
+                if not self._is_valid_record(record):
+                    print(f"跳过无效记忆记录 {line_number}: {record}")
+                    continue
+                records.append(record)
         return records
 
     def _write_records(self, records: List[Dict[str, Any]]) -> None:

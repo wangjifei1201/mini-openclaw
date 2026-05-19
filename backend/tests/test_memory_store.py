@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from graph.memory_store import MemoryStore
 
@@ -133,6 +134,62 @@ class MemoryStoreTests(unittest.TestCase):
             store = MemoryStore(Path(tmpdir))
 
             self.assertEqual(store.list_all(), [])
+
+    def test_read_failure_prevents_write_operations_from_overwriting_existing_file(self):
+        operations = (
+            (
+                "add",
+                lambda store: store.add_memory(
+                    memory_type="project",
+                    content="新记忆不应覆盖旧文件。",
+                    source="manual",
+                    confidence=0.8,
+                ),
+            ),
+            (
+                "update",
+                lambda store: store.update_memory(
+                    "mem_existing",
+                    content="更新不应覆盖旧文件。",
+                ),
+            ),
+            ("delete", lambda store: store.delete_memory("mem_existing")),
+        )
+
+        for operation_name, operation in operations:
+            with self.subTest(operation=operation_name):
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    memory_dir = Path(tmpdir) / "memory"
+                    memory_dir.mkdir(parents=True)
+                    memory_file = memory_dir / "memories.jsonl"
+                    existing_content = json.dumps(
+                        {
+                            "id": "mem_existing",
+                            "type": "preference",
+                            "content": "保留已有记忆。",
+                            "status": "active",
+                            "source": "manual",
+                            "confidence": 0.9,
+                            "created_at": "2026-05-19T12:00:00",
+                            "updated_at": "2026-05-19T12:00:00",
+                        },
+                        ensure_ascii=False,
+                    ) + "\n"
+                    memory_file.write_text(existing_content, encoding="utf-8")
+                    store = MemoryStore(Path(tmpdir))
+
+                    original_open = Path.open
+
+                    def fail_memory_file_read(path, mode="r", *args, **kwargs):
+                        if path == memory_file and mode == "r":
+                            raise OSError("transient read failure")
+                        return original_open(path, mode, *args, **kwargs)
+
+                    with mock.patch.object(Path, "open", fail_memory_file_read):
+                        with self.assertRaises(OSError):
+                            operation(store)
+
+                    self.assertEqual(memory_file.read_text(encoding="utf-8"), existing_content)
 
 
 if __name__ == "__main__":
