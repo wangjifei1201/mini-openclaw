@@ -21,6 +21,14 @@ class ChatRequest(BaseModel):
     stream: bool = True
 
 
+async def _reflect_memory_background(user_message: str, assistant_text: str):
+    """Best-effort memory reflection task."""
+    try:
+        await agent_manager.reflect_memory(user_message, assistant_text)
+    except Exception:
+        pass
+
+
 async def event_generator(
     message: str,
     session_id: str,
@@ -103,7 +111,7 @@ async def event_generator(
 
             assistant_text = "".join(seg.get("content", "") for seg in segments)
             if assistant_text:
-                await agent_manager.reflect_memory(message, assistant_text)
+                asyncio.create_task(_reflect_memory_background(message, assistant_text))
 
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
             
@@ -169,7 +177,7 @@ async def chat(request: ChatRequest):
             request.session_id, "assistant", full_content, tool_calls
         )
         if full_content:
-            await agent_manager.reflect_memory(request.message, full_content)
+            asyncio.create_task(_reflect_memory_background(request.message, full_content))
 
         return {
             "content": full_content,
