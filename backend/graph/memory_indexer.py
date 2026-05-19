@@ -17,6 +17,9 @@ class MemoryIndexer:
     专门为 memory/memories.jsonl 中的 active 记忆构建 LlamaIndex 向量索引。
     """
 
+    STRUCTURED_INDEX_MARKER = "structured_memory_index.marker"
+    STRUCTURED_INDEX_VERSION = "structured-memory-v1"
+
     def __init__(
         self,
         base_dir: Path,
@@ -27,6 +30,7 @@ class MemoryIndexer:
         self.memory_store = memory_store or store or MemoryStore(base_dir)
         self.memory_file = base_dir / "memory" / "memories.jsonl"
         self.storage_dir = base_dir / "storage" / "memory_index"
+        self.marker_file = self.storage_dir / self.STRUCTURED_INDEX_MARKER
         self._index = None
         self._file_hash: Optional[str] = None
 
@@ -94,6 +98,7 @@ class MemoryIndexer:
             if not documents:
                 self._index = None
                 self._file_hash = self._get_file_hash()
+                self.marker_file.unlink(missing_ok=True)
                 return False
 
             from llama_index.core import VectorStoreIndex, Settings as LlamaSettings
@@ -116,11 +121,13 @@ class MemoryIndexer:
             if not nodes:
                 self._index = None
                 self._file_hash = self._get_file_hash()
+                self.marker_file.unlink(missing_ok=True)
                 return False
 
             self._index = VectorStoreIndex(nodes)
             self.storage_dir.mkdir(parents=True, exist_ok=True)
             self._index.storage_context.persist(persist_dir=str(self.storage_dir))
+            self.marker_file.write_text(self.STRUCTURED_INDEX_VERSION, encoding="utf-8")
             self._file_hash = self._get_file_hash()
             return True
 
@@ -129,12 +136,26 @@ class MemoryIndexer:
             print(f"结构化记忆索引构建失败: {e}")
             return False
 
+    def _has_compatible_persisted_index(self) -> bool:
+        """检查持久化索引是否是当前结构化记忆索引格式。"""
+        if not self.memory_file.exists():
+            return False
+        if not self.marker_file.exists():
+            return False
+        try:
+            return self.marker_file.read_text(encoding="utf-8").strip() == self.STRUCTURED_INDEX_VERSION
+        except Exception:
+            return False
+
     def _load_index(self) -> bool:
         """加载已有索引。"""
         if self._index is not None:
             return True
 
         if not self.storage_dir.exists():
+            return False
+
+        if not self._has_compatible_persisted_index():
             return False
 
         try:
@@ -174,6 +195,12 @@ class MemoryIndexer:
         Returns:
             检索结果列表 [{"id": ..., "type": ..., "text": ..., "score": ..., "source": ...}, ...]
         """
+        # 缺失结构化记忆文件等同于空记忆列表，不加载旧的持久化索引。
+        if not self.memory_file.exists():
+            self._index = None
+            self._file_hash = None
+            return []
+
         # 检查文件变更
         if self._maybe_rebuild():
             self.rebuild_index()
