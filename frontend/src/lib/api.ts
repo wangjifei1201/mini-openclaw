@@ -143,6 +143,17 @@ export async function streamChat(
 
 // ============ 文件 API ============
 
+export interface MemoryRecord {
+  id: string
+  type: 'preference' | 'project' | 'feedback' | 'reference'
+  content: string
+  status: 'active' | 'deleted'
+  source: 'auto' | 'manual'
+  confidence: number
+  created_at: string
+  updated_at: string
+}
+
 export async function readFile(path: string) {
   return request<{ path: string; content: string }>(`/api/files?path=${encodeURIComponent(path)}`)
 }
@@ -185,6 +196,10 @@ export async function uploadFiles(files: File[]): Promise<{ uploaded_files: Uplo
 
 export async function getSkills() {
   return request<{ skills: any[] }>('/api/skills')
+}
+
+export async function getMemories() {
+  return request<{ memories: MemoryRecord[] }>('/api/memories')
 }
 
 // ============ Token API ============
