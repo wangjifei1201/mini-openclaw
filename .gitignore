@@ -19,3 +19,4 @@ backend/.npm/_logs/2026-03-17T04_35_25_815Z-debug-0.log
 .worktrees/
 backend/memory/memories.jsonl
 backend/*/__pycache__/*.pyc
+/.claude
