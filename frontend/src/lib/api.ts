@@ -72,12 +72,13 @@ export async function compressSession(sessionId: string) {
 
 // ============ 聊天 API ============
 
-export type StreamEventType = 
+export type StreamEventType =
   | 'retrieval'
   | 'token'
   | 'tool_start'
   | 'tool_end'
   | 'new_response'
+  | 'interactive_card'
   | 'done'
   | 'title'
   | 'error'
@@ -85,6 +86,20 @@ export type StreamEventType =
 export interface StreamEvent {
   type: StreamEventType
   [key: string]: any
+}
+
+export interface InteractiveCardOption {
+  id: string
+  label: string
+  prompt: string
+}
+
+export interface InteractiveCard {
+  id: string
+  type: 'quick_replies' | 'choice'
+  title: string
+  description?: string
+  options: InteractiveCardOption[]
 }
 
 export async function streamChat(

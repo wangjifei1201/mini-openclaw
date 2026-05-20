@@ -127,16 +127,18 @@ class SessionManager:
         session_id: str,
         role: str,
         content: str,
-        tool_calls: Optional[List[Dict[str, Any]]] = None
+        tool_calls: Optional[List[Dict[str, Any]]] = None,
+        interactive_cards: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         """
         追加消息到会话
-        
+
         Args:
             session_id: 会话ID
             role: 角色 (user/assistant)
             content: 消息内容
             tool_calls: 工具调用记录
+            interactive_cards: 交互卡片
         """
         data = self._read_file(session_id)
         
@@ -146,7 +148,9 @@ class SessionManager:
         }
         if tool_calls:
             message["tool_calls"] = tool_calls
-        
+        if interactive_cards:
+            message["interactive_cards"] = interactive_cards
+
         data["messages"].append(message)
         self._write_file(session_id, data)
     

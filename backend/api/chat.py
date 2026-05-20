@@ -29,6 +29,20 @@ async def _reflect_memory_background(user_message: str, assistant_text: str):
         pass
 
 
+async def _generate_interactive_cards_best_effort(user_message: str, assistant_text: str):
+    """Best-effort interactive card generation with a short timeout."""
+    if not assistant_text:
+        return []
+
+    try:
+        return await asyncio.wait_for(
+            agent_manager.generate_interactive_cards(user_message, assistant_text),
+            timeout=5,
+        )
+    except Exception:
+        return []
+
+
 async def event_generator(
     message: str,
     session_id: str,
@@ -95,21 +109,27 @@ async def event_generator(
                     "tool_calls": event.get("tool_calls", []),
                 })
             
+            assistant_text = "".join(seg.get("content", "") for seg in segments)
+            interactive_cards = await _generate_interactive_cards_best_effort(message, assistant_text)
+            if interactive_cards:
+                yield f"data: {json.dumps({'type': 'interactive_card', 'cards': interactive_cards}, ensure_ascii=False)}\n\n"
+
             # 保存用户消息
             agent_manager.session_manager.save_message(
                 session_id, "user", message
             )
             
             # 保存每段助手消息
-            for seg in segments:
+            for index, seg in enumerate(segments):
+                cards_for_segment = interactive_cards if index == len(segments) - 1 else None
                 agent_manager.session_manager.save_message(
                     session_id,
                     "assistant",
                     seg["content"],
-                    seg.get("tool_calls")
+                    seg.get("tool_calls"),
+                    cards_for_segment,
                 )
 
-            assistant_text = "".join(seg.get("content", "") for seg in segments)
             if assistant_text:
                 asyncio.create_task(_reflect_memory_background(message, assistant_text))
 
@@ -169,12 +189,14 @@ async def chat(request: ChatRequest):
             elif event.get("type") == "done":
                 tool_calls = event.get("tool_calls", [])
         
+        interactive_cards = await _generate_interactive_cards_best_effort(request.message, full_content)
+
         # 保存消息
         agent_manager.session_manager.save_message(
             request.session_id, "user", request.message
         )
         agent_manager.session_manager.save_message(
-            request.session_id, "assistant", full_content, tool_calls
+            request.session_id, "assistant", full_content, tool_calls, interactive_cards
         )
         if full_content:
             asyncio.create_task(_reflect_memory_background(request.message, full_content))
@@ -182,5 +204,6 @@ async def chat(request: ChatRequest):
         return {
             "content": full_content,
             "tool_calls": tool_calls,
+            "interactive_cards": interactive_cards,
             "session_id": request.session_id,
         }

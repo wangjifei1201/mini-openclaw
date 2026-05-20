@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
-import { streamChat, getSessions, createSession, deleteSession, getSessionHistory, compressSession, getRAGMode, setRAGMode } from './api'
+import { streamChat, getSessions, createSession, deleteSession, getSessionHistory, compressSession, getRAGMode, setRAGMode, type InteractiveCard } from './api'
 
 // 类型定义
 export interface ToolCall {
@@ -37,6 +37,8 @@ export interface Message {
   content: string
   tool_calls?: ToolCall[]
   retrievals?: RetrievalResult[]
+  interactive_cards?: InteractiveCard[]
+  interactive_cards_disabled?: boolean
   isStreaming?: boolean
   attachments?: Attachment[]
 }
@@ -123,6 +125,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         role: msg.role,
         content: msg.content,
         tool_calls: msg.tool_calls,
+        interactive_cards: msg.interactive_cards,
+        interactive_cards_disabled: true,
       }))
       setMessages(msgs)
     } catch (error) {
@@ -262,7 +266,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
           case 'new_response':
             // 创建新的助手消息段
             break
-            
+
+          case 'interactive_card':
+            setMessages(prev => prev.map(msg =>
+              msg.id === assistantMsgId
+                ? { ...msg, interactive_cards: data.cards || [], interactive_cards_disabled: false }
+                : msg
+            ))
+            break
+
           case 'done':
             setMessages(prev => prev.map(msg =>
               msg.id === assistantMsgId

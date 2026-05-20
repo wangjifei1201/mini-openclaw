@@ -9,6 +9,7 @@ import { User, Bot, FileText, Image as ImageIcon } from 'lucide-react'
 import { Message } from '@/lib/store'
 import ThoughtChain from './ThoughtChain'
 import RetrievalCard from './RetrievalCard'
+import InteractiveCard from './InteractiveCard'
 
 interface ChatMessageProps {
   message: Message
@@ -22,7 +23,7 @@ function extractText(children: React.ReactNode): string {
   if (Array.isArray(children)) {
     return children.map(extractText).join('')
   }
-  if (React.isValidElement(children) && children.props?.children) {
+  if (React.isValidElement<{ children?: React.ReactNode }>(children) && children.props.children) {
     return extractText(children.props.children)
   }
   return ''
@@ -216,7 +217,15 @@ export default function ChatMessage({ message }: ChatMessageProps) {
             </div>
           )}
         </div>
-        
+
+        {!isUser && message.interactive_cards && message.interactive_cards.length > 0 && (
+          <div className="w-full">
+            {message.interactive_cards.map(card => (
+              <InteractiveCard key={card.id} card={card} disabled={message.interactive_cards_disabled} />
+            ))}
+          </div>
+        )}
+
         {/* 流式状态指示器 */}
         {message.isStreaming && message.content && (
           <span className="inline-block w-2 h-4 bg-klein-blue animate-pulse ml-1" />

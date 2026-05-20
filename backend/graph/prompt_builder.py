@@ -117,6 +117,16 @@ class PromptBuilder:
             if memory:
                 parts.append(memory)
         
+        interaction_guide = """<!-- Interactive Chat Cards -->
+## 交互卡片友好输出
+
+当回答适合用户继续选择下一步时，请在正文末尾用自然语言列出 2-3 个明确的下一步选项。
+如果回答中存在多个可选方案，请用清晰的编号或小标题描述每个方案。
+不要输出 JSON、HTML、按钮代码或任何前端协议字段。
+交互卡片由系统根据你的自然语言回答自动生成。
+"""
+        parts.append(interaction_guide)
+
         return "\n\n".join(parts)
     
     def get_system_prompt_tokens(self) -> int:

@@ -12,6 +12,7 @@ from config import BASE_DIR, get_rag_mode, settings
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from tools import get_all_tools
 
+from .interactive_cards import InteractiveCardService
 from .memory_indexer import MemoryIndexer
 from .memory_reflection import MemoryReflectionService
 from .memory_store import MemoryStore
@@ -66,6 +67,7 @@ class AgentManager:
         self.memory_store: Optional[MemoryStore] = None
         self.memory_indexer: Optional[MemoryIndexer] = None
         self.memory_reflection: Optional[MemoryReflectionService] = None
+        self.interactive_cards: Optional[InteractiveCardService] = None
         self._initialized = False
 
     def initialize(self, base_dir: Path) -> None:
@@ -103,6 +105,7 @@ class AgentManager:
         except TypeError:
             self.memory_indexer = MemoryIndexer(base_dir)
         self.memory_reflection = MemoryReflectionService(store=self.memory_store, llm=self.llm)
+        self.interactive_cards = InteractiveCardService(llm=self.llm)
 
         self._initialized = True
 
@@ -360,6 +363,12 @@ class AgentManager:
                 "type": "error",
                 "error": error_msg,
             }
+
+    async def generate_interactive_cards(self, user_message: str, assistant_response: str) -> List[Dict[str, Any]]:
+        """Generate structured interactive cards for a completed assistant response."""
+        if not self.interactive_cards:
+            return []
+        return await self.interactive_cards.generate(user_message, assistant_response)
 
     async def reflect_memory(self, user_message: str, assistant_response: str) -> bool:
         """在聊天完成后运行半自动记忆反思。"""
