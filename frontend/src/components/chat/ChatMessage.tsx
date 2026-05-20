@@ -83,7 +83,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
       </div>
       
       {/* 消息内容 */}
-      <div className={`flex-1 max-w-[85%] md:max-w-[80%] ${isUser ? 'text-right' : ''}`}>
+      <div className={`flex flex-col min-w-0 ${isUser ? 'max-w-[85%] md:max-w-[80%] items-end' : 'w-[85%] md:w-[80%] items-start'}`}>
         {/* 检索结果 */}
         {message.retrievals && message.retrievals.length > 0 && (
           <RetrievalCard retrievals={message.retrievals} />
@@ -124,7 +124,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         
         {/* 消息气泡 */}
         <div
-          className={`block w-full min-w-0 p-2 md:p-3 rounded-2xl text-sm md:text-base overflow-hidden ${
+          className={`${isUser ? 'inline-block w-fit' : 'block w-full'} max-w-full min-w-0 p-2 md:p-3 rounded-2xl text-sm md:text-base text-left overflow-hidden ${
             isUser
               ? 'bg-klein-blue text-white rounded-tr-sm'
               : 'bg-white shadow-sm rounded-tl-sm'

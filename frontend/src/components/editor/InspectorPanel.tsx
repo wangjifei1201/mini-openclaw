@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import { X, Save, FileText } from 'lucide-react'
 import { useApp } from '@/lib/store'
@@ -13,24 +13,50 @@ const MonacoEditor = dynamic(
 )
 
 const MEMORY_FILE_PATH = 'memory/memories.jsonl'
-const MEMORY_FILTERS: Array<'all' | MemoryRecord['status'] | MemoryRecord['type']> = [
+const MEMORY_STATUS_FILTERS: Array<'all' | MemoryRecord['status']> = [
   'all',
   'active',
   'deleted',
+]
+const MEMORY_TYPE_FILTERS: Array<'all' | MemoryRecord['type']> = [
+  'all',
   'preference',
   'project',
   'feedback',
   'reference',
 ]
 
-const MEMORY_FILTER_LABELS: Record<'all' | MemoryRecord['status'] | MemoryRecord['type'], string> = {
-  all: '全部',
-  active: 'active',
-  deleted: 'deleted',
-  preference: 'preference',
-  project: 'project',
-  feedback: 'feedback',
-  reference: 'reference',
+const MEMORY_STATUS_LABELS: Record<'all' | MemoryRecord['status'], string> = {
+  all: '全部状态',
+  active: '启用中',
+  deleted: '已删除',
+}
+
+const MEMORY_TYPE_LABELS: Record<'all' | MemoryRecord['type'], string> = {
+  all: '全部类型',
+  preference: '用户偏好',
+  project: '项目记忆',
+  feedback: '反馈记录',
+  reference: '参考资料',
+}
+
+const MEMORY_SOURCE_LABELS: Record<MemoryRecord['source'], string> = {
+  auto: '自动生成',
+  manual: '手动创建',
+}
+
+const formatJsonlForDisplay = (content: string) => {
+  return content
+    .split('\n')
+    .filter(line => line.trim())
+    .map(line => {
+      try {
+        return JSON.stringify(JSON.parse(line), null, 2)
+      } catch {
+        return line
+      }
+    })
+    .join('\n\n')
 }
 
 export default function InspectorPanel() {
@@ -40,18 +66,21 @@ export default function InspectorPanel() {
   const [hasChanges, setHasChanges] = useState(false)
   const [originalContent, setOriginalContent] = useState('')
   const [memories, setMemories] = useState<MemoryRecord[]>([])
-  const [memoryFilter, setMemoryFilter] = useState<'all' | MemoryRecord['status'] | MemoryRecord['type']>('all')
+  const [memoryStatusFilter, setMemoryStatusFilter] = useState<'all' | MemoryRecord['status']>('all')
+  const [memoryTypeFilter, setMemoryTypeFilter] = useState<'all' | MemoryRecord['type']>('all')
   const [showRawJsonl, setShowRawJsonl] = useState(false)
 
   const isStructuredMemoryFile = currentFile === MEMORY_FILE_PATH
   const isStructuredTableMode = isStructuredMemoryFile && !showRawJsonl
+  const isStructuredRawMode = isStructuredMemoryFile && showRawJsonl
+  const displayedFileContent = isStructuredRawMode ? formatJsonlForDisplay(fileContent) : fileContent
   const filteredMemories = memories.filter(memory => {
-    if (memoryFilter === 'all') return true
-    return memory.status === memoryFilter || memory.type === memoryFilter
+    const statusMatched = memoryStatusFilter === 'all' || memory.status === memoryStatusFilter
+    const typeMatched = memoryTypeFilter === 'all' || memory.type === memoryTypeFilter
+    return statusMatched && typeMatched
   })
 
-  // 加载文件内容
-  useEffect(() => {
+  const loadCurrentFile = useCallback(async (preserveUnsaved = false) => {
     if (!currentFile) {
       setFileContent('')
       setOriginalContent('')
@@ -59,35 +88,65 @@ export default function InspectorPanel() {
       return
     }
 
-    readFile(currentFile)
-      .then(data => {
+    try {
+      const data = await readFile(currentFile)
+      setOriginalContent(data.content)
+      if (!preserveUnsaved || !hasChanges || fileContent === data.content) {
         setFileContent(data.content)
-        setOriginalContent(data.content)
         setHasChanges(false)
-      })
-      .catch(err => {
-        console.error('读取文件失败:', err)
+      }
+    } catch (err) {
+      console.error('读取文件失败:', err)
+      if (!preserveUnsaved || !hasChanges) {
         setFileContent(`// 无法读取文件: ${currentFile}`)
-      })
-  }, [currentFile, setFileContent])
+      }
+    }
+  }, [currentFile, fileContent, hasChanges, setFileContent])
+
+  const loadStructuredMemories = useCallback(async () => {
+    if (currentFile !== MEMORY_FILE_PATH) return
+
+    try {
+      const data = await getMemories()
+      setMemories(data.memories)
+    } catch (err) {
+      console.error('读取结构化记忆失败:', err)
+      setMemories([])
+    }
+  }, [currentFile])
+
+  // 加载文件内容
+  useEffect(() => {
+    loadCurrentFile(false)
+  }, [loadCurrentFile])
 
   // 加载结构化记忆
   useEffect(() => {
     if (currentFile !== MEMORY_FILE_PATH) {
       setMemories([])
-      setMemoryFilter('all')
+      setMemoryStatusFilter('all')
+      setMemoryTypeFilter('all')
       setShowRawJsonl(false)
       return
     }
 
     setShowRawJsonl(false)
-    getMemories()
-      .then(data => setMemories(data.memories))
-      .catch(err => {
-        console.error('读取结构化记忆失败:', err)
-        setMemories([])
-      })
-  }, [currentFile])
+    loadStructuredMemories()
+  }, [currentFile, loadStructuredMemories])
+
+  // 自动刷新打开中的右侧信息框，保留未保存编辑和已选过滤条件
+  useEffect(() => {
+    if (!currentFile) return
+
+    const interval = window.setInterval(() => {
+      loadCurrentFile(true)
+      if (currentFile === MEMORY_FILE_PATH) {
+        loadStructuredMemories()
+      }
+    }, 3000)
+
+    return () => window.clearInterval(interval)
+  }, [currentFile, loadCurrentFile, loadStructuredMemories])
 
   // 计算 Token 数量
   useEffect(() => {
@@ -166,14 +225,16 @@ export default function InspectorPanel() {
               {showRawJsonl ? '结构化视图' : '查看原始 JSONL'}
             </button>
           )}
-          <button
-            onClick={handleSave}
-            disabled={isStructuredTableMode || !hasChanges || isSaving}
-            className="flex items-center gap-1 px-3 py-1 text-sm text-white bg-klein-blue rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Save size={14} />
-            {isSaving ? '保存中...' : '保存'}
-          </button>
+          {!isStructuredMemoryFile && (
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges || isSaving}
+              className="flex items-center gap-1 px-3 py-1 text-sm text-white bg-klein-blue rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save size={14} />
+              {isSaving ? '保存中...' : '保存'}
+            </button>
+          )}
           <button
             onClick={() => setCurrentFile(null)}
             className="p-1 text-gray-400 hover:text-gray-600"
@@ -187,19 +248,36 @@ export default function InspectorPanel() {
       <div className="flex-1 min-h-0">
         {isStructuredTableMode ? (
           <div className="h-full flex flex-col bg-gray-50">
-            <div className="px-4 py-3 border-b border-apple-border bg-white">
+            <div className="px-4 py-3 border-b border-apple-border bg-white space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                {MEMORY_FILTERS.map(filter => (
+                <span className="text-xs font-medium text-gray-500">状态</span>
+                {MEMORY_STATUS_FILTERS.map(filter => (
                   <button
                     key={filter}
-                    onClick={() => setMemoryFilter(filter)}
+                    onClick={() => setMemoryStatusFilter(filter)}
                     className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                      memoryFilter === filter
+                      memoryStatusFilter === filter
                         ? 'border-klein-blue bg-klein-blue text-white'
                         : 'border-gray-200 text-gray-600 hover:border-klein-blue/40 hover:text-klein-blue'
                     }`}
                   >
-                    {MEMORY_FILTER_LABELS[filter]}
+                    {MEMORY_STATUS_LABELS[filter]}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-gray-500">类型</span>
+                {MEMORY_TYPE_FILTERS.map(filter => (
+                  <button
+                    key={filter}
+                    onClick={() => setMemoryTypeFilter(filter)}
+                    className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                      memoryTypeFilter === filter
+                        ? 'border-klein-blue bg-klein-blue text-white'
+                        : 'border-gray-200 text-gray-600 hover:border-klein-blue/40 hover:text-klein-blue'
+                    }`}
+                  >
+                    {MEMORY_TYPE_LABELS[filter]}
                   </button>
                 ))}
               </div>
@@ -215,12 +293,12 @@ export default function InspectorPanel() {
                   <table className="min-w-full divide-y divide-apple-border text-sm">
                     <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                       <tr>
-                        <th className="px-4 py-3 text-left font-medium">type</th>
-                        <th className="px-4 py-3 text-left font-medium">content</th>
-                        <th className="px-4 py-3 text-left font-medium">source</th>
-                        <th className="px-4 py-3 text-left font-medium">confidence</th>
-                        <th className="px-4 py-3 text-left font-medium">status</th>
-                        <th className="px-4 py-3 text-left font-medium">updated_at</th>
+                        <th className="px-4 py-3 text-left font-medium">类型</th>
+                        <th className="px-4 py-3 text-left font-medium">记忆内容</th>
+                        <th className="px-4 py-3 text-left font-medium">来源</th>
+                        <th className="px-4 py-3 text-left font-medium">置信度</th>
+                        <th className="px-4 py-3 text-left font-medium">状态</th>
+                        <th className="px-4 py-3 text-left font-medium">更新时间</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-apple-border text-gray-700">
@@ -228,13 +306,13 @@ export default function InspectorPanel() {
                         <tr key={memory.id} className="align-top">
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className="rounded-full bg-klein-blue/10 px-2 py-1 text-xs font-medium text-klein-blue">
-                              {memory.type}
+                              {MEMORY_TYPE_LABELS[memory.type]}
                             </span>
                           </td>
                           <td className="px-4 py-3 min-w-[280px] max-w-xl whitespace-pre-wrap break-words">
                             {memory.content}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-500">{memory.source}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-gray-500">{MEMORY_SOURCE_LABELS[memory.source]}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-gray-500">
                             {typeof memory.confidence === 'number' ? memory.confidence.toFixed(2) : memory.confidence}
                           </td>
@@ -245,7 +323,7 @@ export default function InspectorPanel() {
                                 : 'bg-gray-100 text-gray-500'
                             }`}
                             >
-                              {memory.status}
+                              {MEMORY_STATUS_LABELS[memory.status]}
                             </span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-gray-500">{memory.updated_at}</td>
@@ -262,9 +340,14 @@ export default function InspectorPanel() {
             height="100%"
             defaultLanguage="markdown"
             theme="vs"
-            value={fileContent}
-            onChange={(value) => setFileContent(value || '')}
+            value={displayedFileContent}
+            onChange={(value) => {
+              if (!isStructuredRawMode) {
+                setFileContent(value || '')
+              }
+            }}
             options={{
+              readOnly: isStructuredRawMode,
               minimap: { enabled: false },
               fontSize: 14,
               lineNumbers: 'on',
