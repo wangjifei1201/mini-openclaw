@@ -227,6 +227,7 @@ export default function Sidebar() {
             </div>
             <div className="space-y-1">
               <FileItem path="memory/MEMORY.md" label="长期记忆" />
+              <FileItem path="memory/memories.jsonl" label="结构化记忆" />
               <FileItem path="SKILLS_SNAPSHOT.md" label="技能快照" />
             </div>
           </div>

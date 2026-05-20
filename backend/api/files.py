@@ -63,6 +63,13 @@ class SaveFileRequest(BaseModel):
     content: str
 
 
+def _memory_rebuild_trigger_path(path: str) -> str:
+    """Normalize path forms accepted by the file API for rebuild trigger comparison."""
+    if path.startswith("./"):
+        path = path[2:]
+    return path.lstrip("/")
+
+
 def is_path_allowed(path: str) -> bool:
     """
     检查路径是否在白名单中（使用路径解析防止遍历攻击）
@@ -131,7 +138,7 @@ async def save_file(request: SaveFileRequest):
     """
     保存文件内容
     
-    保存 memory/MEMORY.md 时会自动触发索引重建
+    保存 memory/MEMORY.md 或 memory/memories.jsonl 时会自动触发索引重建
     """
     if not is_path_allowed(request.path):
         raise HTTPException(status_code=403, detail="Access denied: path not allowed")
@@ -144,8 +151,8 @@ async def save_file(request: SaveFileRequest):
     try:
         file_path.write_text(request.content, encoding="utf-8")
         
-        # 如果是 MEMORY.md，触发索引重建
-        if request.path == "memory/MEMORY.md":
+        # 如果是记忆文件，触发索引重建
+        if _memory_rebuild_trigger_path(request.path) in {"memory/MEMORY.md", "memory/memories.jsonl"}:
             try:
                 agent_manager.memory_indexer.rebuild_index()
             except Exception:
