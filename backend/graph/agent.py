@@ -149,6 +149,8 @@ class AgentManager:
                 messages.append(HumanMessage(content=content))
             elif role == "assistant":
                 messages.append(AIMessage(content=content))
+            elif role == "system":
+                messages.append(SystemMessage(content=content))
 
         return messages
 
@@ -182,6 +184,17 @@ class AgentManager:
             if history is None:
                 history = self.session_manager.load_session_for_agent(session_id)
 
+            # 将 active 长期结构化记忆注入对话上下文（不持久化）
+            memory_context = self.memory_indexer.format_active_memory_context() if self.memory_indexer else ""
+            if memory_context:
+                print("Memory Context:", memory_context)
+                history.append(
+                    {
+                        "role": "system",
+                        "content": memory_context,
+                    }
+                )
+
             # RAG 检索
             rag_mode = get_rag_mode()
             if rag_mode:
@@ -211,6 +224,7 @@ class AgentManager:
 
             # create_agent 返回 CompiledStateGraph，输入为 {"messages": [...]}
             input_state = {"messages": chat_history}
+            print("Agent Input Messages:", input_state["messages"])
 
             # 流式执行
             current_content = ""

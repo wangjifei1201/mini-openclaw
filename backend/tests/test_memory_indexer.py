@@ -3,6 +3,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from langchain_core.messages import SystemMessage
+
+from graph.agent import AgentManager
 from graph.memory_indexer import MemoryIndexer
 from graph.memory_store import MemoryStore
 
@@ -200,6 +203,46 @@ class MemoryIndexerTests(unittest.TestCase):
             self.assertIn("相关度: 0.82", context)
             self.assertIn("id: mem_1", context)
             self.assertIn("用户希望回答简洁直接。", context)
+
+    def test_format_active_memory_context_uses_active_records(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = MemoryStore(Path(tmpdir))
+            active = store.add_memory(
+                memory_type="preference",
+                content="用户希望回答简洁直接。",
+                source="auto",
+                confidence=0.86,
+            )
+            deleted = store.add_memory(
+                memory_type="project",
+                content="已删除项目记忆。",
+                source="manual",
+                confidence=0.9,
+            )
+            store.delete_memory(deleted["id"])
+            indexer = MemoryIndexer(Path(tmpdir), memory_store=store)
+
+            context = indexer.format_active_memory_context()
+
+            self.assertIn("[长期结构化记忆]", context)
+            self.assertIn(active["id"], context)
+            self.assertIn("类型: preference", context)
+            self.assertIn("用户希望回答简洁直接。", context)
+            self.assertNotIn("已删除项目记忆。", context)
+
+    def test_agent_build_messages_preserves_system_memory_context(self):
+        manager = AgentManager()
+
+        messages = manager._build_messages([
+            {
+                "role": "system",
+                "content": "[长期结构化记忆]\n用户希望回答简洁直接。",
+            }
+        ])
+
+        self.assertEqual(len(messages), 1)
+        self.assertIsInstance(messages[0], SystemMessage)
+        self.assertIn("用户希望回答简洁直接。", messages[0].content)
 
     def test_init_accepts_task3_store_keyword(self):
         with tempfile.TemporaryDirectory() as tmpdir:

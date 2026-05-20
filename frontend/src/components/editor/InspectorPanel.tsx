@@ -115,10 +115,26 @@ export default function InspectorPanel() {
     }
   }, [currentFile])
 
-  // 加载文件内容
+  // 加载文件内容：只在切换文件时加载，编辑内容时不重新拉取覆盖
   useEffect(() => {
-    loadCurrentFile(false)
-  }, [loadCurrentFile])
+    if (!currentFile) {
+      setFileContent('')
+      setOriginalContent('')
+      setTokenCount(0)
+      return
+    }
+
+    readFile(currentFile)
+      .then(data => {
+        setOriginalContent(data.content)
+        setFileContent(data.content)
+        setHasChanges(false)
+      })
+      .catch(err => {
+        console.error('读取文件失败:', err)
+        setFileContent(`// 无法读取文件: ${currentFile}`)
+      })
+  }, [currentFile, setFileContent])
 
   // 加载结构化记忆
   useEffect(() => {
@@ -134,19 +150,17 @@ export default function InspectorPanel() {
     loadStructuredMemories()
   }, [currentFile, loadStructuredMemories])
 
-  // 自动刷新打开中的右侧信息框，保留未保存编辑和已选过滤条件
+  // 自动刷新打开中的右侧信息框：只刷新只读展示内容，可编辑文件不轮询刷新
   useEffect(() => {
-    if (!currentFile) return
+    if (!currentFile || !isStructuredTableMode) return
 
     const interval = window.setInterval(() => {
       loadCurrentFile(true)
-      if (currentFile === MEMORY_FILE_PATH) {
-        loadStructuredMemories()
-      }
+      loadStructuredMemories()
     }, 3000)
 
     return () => window.clearInterval(interval)
-  }, [currentFile, loadCurrentFile, loadStructuredMemories])
+  }, [currentFile, isStructuredTableMode, loadCurrentFile, loadStructuredMemories])
 
   // 计算 Token 数量
   useEffect(() => {

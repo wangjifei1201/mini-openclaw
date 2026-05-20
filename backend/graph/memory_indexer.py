@@ -233,6 +233,22 @@ class MemoryIndexer:
             print(f"结构化记忆检索失败: {e}")
             return []
 
+    def format_active_memory_context(self, limit: int = 20) -> str:
+        """格式化 active 结构化记忆为对话上下文。"""
+        records = self.memory_store.list_active()[:limit]
+        if not records:
+            return ""
+
+        lines = [
+            "[长期结构化记忆]",
+            "以下是用户长期偏好和项目上下文。除非用户本轮明确提出相反要求，否则应优先遵循这些记忆。",
+        ]
+        for i, record in enumerate(records, 1):
+            lines.append(f"\n【记忆 {i}】(类型: {record['type']}, id: {record['id']})")
+            lines.append(record["content"])
+
+        return "\n".join(lines)
+
     def format_retrieval_context(self, results: List[Dict[str, Any]]) -> str:
         """格式化结构化记忆检索结果为上下文字符串。"""
         if not results:
