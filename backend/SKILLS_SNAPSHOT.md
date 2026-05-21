@@ -9,4 +9,9 @@
     <description>创建有效技能的指南。当用户想要创建新技能（或更新现有技能）以使用专业知识、工作流程或工具集成扩展Claude的能力时使用此技能。</description>
     <location>./skills/skill-creator/SKILL.md</location>
   </skill>
+  <skill>
+    <name>table-generator</name>
+    <description>根据用户自然语言描述生成表格。用于用户要求生成、设计、整理、导出表格，或需要 Markdown 预览后生成可下载的 xlsx/xls 文件时。</description>
+    <location>./skills/table-generator/SKILL.md</location>
+  </skill>
 </available_skills>

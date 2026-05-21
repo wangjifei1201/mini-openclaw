@@ -235,13 +235,16 @@ class MemoryIndexer:
 
     def format_active_memory_context(self, limit: int = 20) -> str:
         """格式化 active 结构化记忆为对话上下文。"""
-        records = self.memory_store.list_active()[:limit]
+        records = sorted(
+            self.memory_store.list_active(),
+            key=lambda record: 0 if record["type"] == "preference" else 1,
+        )[:limit]
         if not records:
             return ""
 
         lines = [
             "[长期结构化记忆]",
-            "以下是用户长期偏好和项目上下文。除非用户本轮明确提出相反要求，否则应优先遵循这些记忆。",
+            "以下是用户长期偏好和项目上下文。preference 类型记忆代表用户最新偏好，优先级高于静态用户画像。除非用户本轮明确提出相反要求，否则必须遵循这些记忆；用户仅使用某种语言提问不代表要求使用该语言回答。",
         ]
         for i, record in enumerate(records, 1):
             lines.append(f"\n【记忆 {i}】(类型: {record['type']}, id: {record['id']})")

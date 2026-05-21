@@ -230,6 +230,28 @@ class MemoryIndexerTests(unittest.TestCase):
             self.assertIn("用户希望回答简洁直接。", context)
             self.assertNotIn("已删除项目记忆。", context)
 
+    def test_format_active_memory_context_prioritizes_preference_records(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = MemoryStore(Path(tmpdir))
+            project = store.add_memory(
+                memory_type="project",
+                content="当前项目需要生成招标文件分析。",
+                source="auto",
+                confidence=0.8,
+            )
+            preference = store.add_memory(
+                memory_type="preference",
+                content="用户偏好后续交流统一使用英文回答，不论其输入语言。",
+                source="auto",
+                confidence=0.99,
+            )
+            indexer = MemoryIndexer(Path(tmpdir), memory_store=store)
+
+            context = indexer.format_active_memory_context()
+
+            self.assertIn("preference 类型记忆代表用户最新偏好，优先级高于静态用户画像", context)
+            self.assertLess(context.index(preference["content"]), context.index(project["content"]))
+
     def test_agent_build_messages_preserves_system_memory_context(self):
         manager = AgentManager()
 
