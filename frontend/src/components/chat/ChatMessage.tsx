@@ -7,6 +7,7 @@ import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import { User, Bot, FileText, Image as ImageIcon } from 'lucide-react'
 import { Message } from '@/lib/store'
+import { isBackendOutputPath, isPdfOutputPath, resolveBackendOutputUrl } from '@/lib/api'
 import ThoughtChain from './ThoughtChain'
 import RetrievalCard from './RetrievalCard'
 import InteractiveCard from './InteractiveCard'
@@ -198,13 +199,18 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                     )
                   },
                   // 链接样式
-                  a({ children, ...props }) {
+                  a({ children, href, ...props }) {
+                    const resolvedHref = resolveBackendOutputUrl(href) || href
+                    const shouldDownload = isBackendOutputPath(href) && !isPdfOutputPath(href)
+
                     return (
                       <a
                         {...props}
+                        href={resolvedHref}
                         className={`underline ${isUser ? 'text-blue-200' : 'text-klein-blue'}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        download={shouldDownload ? true : undefined}
                       >
                         {children}
                       </a>

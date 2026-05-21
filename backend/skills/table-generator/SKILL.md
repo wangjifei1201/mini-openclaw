@@ -64,8 +64,10 @@ wb.save(output_path)
 ## 输出路径
 
 - 文件应保存到后端 `outputs/` 目录。
-- 返回路径时使用项目已有静态文件服务可访问的路径。
-- 如果无法确认下载 URL，至少返回本地文件路径。
+- 回复用户时必须使用 Markdown 链接，并使用 `/outputs/<filename>` 形式的相对输出路径。
+- 不要返回 `localhost`、IP 地址、前端地址或本地绝对路径。
+- Excel 示例：`已生成文件：[下载 Excel](/outputs/table-20260521.xlsx)`。
+- PDF 示例：`已生成文件：[查看 PDF](/outputs/report-20260521.pdf)`。
 
 ## 质量要求
 

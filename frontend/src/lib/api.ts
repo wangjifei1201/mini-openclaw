@@ -3,14 +3,82 @@
  */
 
 // 动态获取 API 地址，支持本机和局域网访问
-const getApiBase = () => {
+export const getBackendBaseUrl = () => {
   if (typeof window === 'undefined') {
     return 'http://localhost:8002'
   }
   return `http://${window.location.hostname}:8002`
 }
 
-const API_BASE = getApiBase()
+const getRawPathname = (trimmed: string) => {
+  if (trimmed.startsWith('/outputs/')) return trimmed.split('?')[0].split('#')[0]
+  if (trimmed.startsWith('outputs/')) return `/${trimmed.split('?')[0].split('#')[0]}`
+
+  const match = trimmed.match(/^[a-zA-Z][a-zA-Z\d+.-]*:\/\/[^/?#]*(\/[^?#]*)?/)
+  return match?.[1] || null
+}
+
+const hasTraversalSegment = (pathname: string) => {
+  return pathname.split('/').some(segment => {
+    let decoded = segment
+    for (let i = 0; i < 5; i += 1) {
+      try {
+        const next = decodeURIComponent(decoded)
+        if (next === decoded) break
+        decoded = next
+      } catch {
+        return true
+      }
+    }
+    return decoded === '.' || decoded === '..'
+  })
+}
+
+const getSafeBackendOutputPath = (href?: string | null) => {
+  if (!href) return null
+
+  const trimmed = href.trim()
+  if (!trimmed) return null
+
+  const rawPathname = getRawPathname(trimmed)
+  if (!rawPathname || !rawPathname.startsWith('/outputs/')) return null
+  if (hasTraversalSegment(rawPathname)) return null
+
+  let parsed: URL
+  try {
+    if (trimmed.startsWith('/outputs/')) {
+      parsed = new URL(trimmed, 'http://backend.local')
+    } else if (trimmed.startsWith('outputs/')) {
+      parsed = new URL(`/${trimmed}`, 'http://backend.local')
+    } else {
+      parsed = new URL(trimmed)
+    }
+  } catch {
+    return null
+  }
+
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`
+}
+
+export const isBackendOutputPath = (href?: string | null) => {
+  return getSafeBackendOutputPath(href) !== null
+}
+
+export const resolveBackendOutputUrl = (href?: string | null) => {
+  const outputPath = getSafeBackendOutputPath(href)
+  if (!outputPath) return null
+
+  return `${getBackendBaseUrl()}${outputPath}`
+}
+
+export const isPdfOutputPath = (href?: string | null) => {
+  const outputPath = getSafeBackendOutputPath(href)
+  if (!outputPath) return false
+  const path = outputPath.split('?')[0].split('#')[0].toLowerCase()
+  return path.endsWith('.pdf')
+}
+
+const API_BASE = getBackendBaseUrl()
 
 // 通用请求方法
 async function request<T>(
