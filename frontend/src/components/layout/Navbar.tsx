@@ -1,6 +1,7 @@
 'use client'
 
-import { ExternalLink, Menu } from 'lucide-react'
+import Image from 'next/image'
+import { Menu } from 'lucide-react'
 import { useApp } from '@/lib/store'
 
 export default function Navbar() {
@@ -16,11 +17,14 @@ export default function Navbar() {
         >
           <Menu size={20} />
         </button>
-        <div className="w-8 h-8 bg-klein-blue rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-sm">O</span>
-        </div>
-        <span className="font-semibold text-lg text-gray-800 hidden sm:block">BaseClaw</span>
-        <span className="font-semibold text-base text-gray-800 sm:hidden">BaseClaw</span>
+        <Image
+          src="/deepclaw-logo-text.png"
+          alt="DeepClaw"
+          width={174}
+          height={40}
+          priority
+          className="h-7 w-auto md:h-8"
+        />
       </div>
     </nav>
   )

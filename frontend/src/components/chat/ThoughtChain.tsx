@@ -58,7 +58,7 @@ export default function ThoughtChain({ toolCalls }: ThoughtChainProps) {
   }
 
   return (
-    <div className="mb-2">
+    <div className="mb-2 w-full max-w-full min-w-0 overflow-hidden">
       <div className="flex items-center gap-1 md:gap-2 mb-2">
         <button
           onClick={() => setIsExpanded(!isExpanded)}
@@ -87,7 +87,7 @@ export default function ThoughtChain({ toolCalls }: ThoughtChainProps) {
       </div>
 
       {isExpanded && (
-        <div className="thought-chain space-y-2">
+        <div className="thought-chain w-full max-w-full min-w-0 overflow-hidden space-y-2">
           {displayCalls.map((call, displayIdx) => {
             // 计算原始索引用于展开状态管理
             const originalIdx = showOnlyFailures 
