@@ -202,7 +202,6 @@ class AgentManager:
             # 将 active 长期结构化记忆注入对话上下文（不持久化）
             memory_context = self.memory_indexer.format_active_memory_context() if self.memory_indexer else ""
             if memory_context:
-                print("Memory Context:", memory_context)
                 history.append(
                     {
                         "role": "system",

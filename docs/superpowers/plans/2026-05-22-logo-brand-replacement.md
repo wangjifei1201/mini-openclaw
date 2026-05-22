@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the top navbar `BaseClaw` text brand with the provided DeepClaw logo and update the welcome text to `欢迎使用 DeepClaw`.
+**Goal:** Replace the top navbar `DeepClaw` text brand with the provided DeepClaw logo and update the welcome text to `欢迎使用 DeepClaw`.
 
 **Architecture:** Use Next.js public static assets for the logo. Keep the change limited to the navbar brand rendering and welcome empty-state copy, without changing global metadata or broader theme.
 
@@ -15,9 +15,9 @@
 - Create: `frontend/public/deepclaw.png`
   - Static copy of the existing root-level logo asset so Next.js can serve it as `/deepclaw.png`.
 - Modify: `frontend/src/components/layout/Navbar.tsx`
-  - Replace the current blue `O` icon and `BaseClaw` text spans with a responsive logo image.
+  - Replace the current blue `O` icon and `DeepClaw` text spans with a responsive logo image.
 - Modify: `frontend/src/components/chat/ChatPanel.tsx`
-  - Change the no-session welcome heading from `欢迎使用 BaseClaw` to `欢迎使用 DeepClaw`.
+  - Change the no-session welcome heading from `欢迎使用 DeepClaw` to `欢迎使用 DeepClaw`.
 - Read-only reference: `deepclaw.png`
   - Source logo file at the repository root.
 
@@ -87,8 +87,8 @@ const source = fs.readFileSync('/Users/wangjifei/deepexi/base-claw/frontend/src/
 if (!source.includes('src="/deepclaw.png"')) {
   throw new Error('Navbar does not render /deepclaw.png')
 }
-if (source.includes('>BaseClaw<')) {
-  throw new Error('Navbar still renders BaseClaw text')
+if (source.includes('>DeepClaw<')) {
+  throw new Error('Navbar still renders DeepClaw text')
 }
 if (source.includes('text-sm">O</span>')) {
   throw new Error('Navbar still renders the old O icon')
@@ -123,8 +123,8 @@ Change the brand block in `frontend/src/components/layout/Navbar.tsx` from:
         <div className="w-8 h-8 bg-klein-blue rounded-lg flex items-center justify-center">
           <span className="text-white font-bold text-sm">O</span>
         </div>
-        <span className="font-semibold text-lg text-gray-800 hidden sm:block">BaseClaw</span>
-        <span className="font-semibold text-base text-gray-800 sm:hidden">BaseClaw</span>
+        <span className="font-semibold text-lg text-gray-800 hidden sm:block">DeepClaw</span>
+        <span className="font-semibold text-base text-gray-800 sm:hidden">DeepClaw</span>
 ```
 
 to:
@@ -151,8 +151,8 @@ const source = fs.readFileSync('/Users/wangjifei/deepexi/base-claw/frontend/src/
 if (!source.includes('src="/deepclaw.png"')) {
   throw new Error('Navbar does not render /deepclaw.png')
 }
-if (source.includes('>BaseClaw<')) {
-  throw new Error('Navbar still renders BaseClaw text')
+if (source.includes('>DeepClaw<')) {
+  throw new Error('Navbar still renders DeepClaw text')
 }
 if (source.includes('text-sm">O</span>')) {
   throw new Error('Navbar still renders the old O icon')
@@ -180,8 +180,8 @@ const source = fs.readFileSync('/Users/wangjifei/deepexi/base-claw/frontend/src/
 if (!source.includes('欢迎使用 DeepClaw')) {
   throw new Error('Welcome page does not use DeepClaw')
 }
-if (source.includes('欢迎使用 BaseClaw')) {
-  throw new Error('Welcome page still uses BaseClaw')
+if (source.includes('欢迎使用 DeepClaw')) {
+  throw new Error('Welcome page still uses DeepClaw')
 }
 NODE
 ```
@@ -193,7 +193,7 @@ Expected: FAIL with `Welcome page does not use DeepClaw`.
 Change this line in `frontend/src/components/chat/ChatPanel.tsx`:
 
 ```tsx
-              <div className="text-lg md:text-xl font-medium mb-2">欢迎使用 BaseClaw</div>
+              <div className="text-lg md:text-xl font-medium mb-2">欢迎使用 DeepClaw</div>
 ```
 
 to:
@@ -213,8 +213,8 @@ const source = fs.readFileSync('/Users/wangjifei/deepexi/base-claw/frontend/src/
 if (!source.includes('欢迎使用 DeepClaw')) {
   throw new Error('Welcome page does not use DeepClaw')
 }
-if (source.includes('欢迎使用 BaseClaw')) {
-  throw new Error('Welcome page still uses BaseClaw')
+if (source.includes('欢迎使用 DeepClaw')) {
+  throw new Error('Welcome page still uses DeepClaw')
 }
 NODE
 ```
@@ -245,8 +245,8 @@ if (!fs.existsSync('/Users/wangjifei/deepexi/base-claw/frontend/public/deepclaw.
 if (!navbar.includes('src="/deepclaw.png"')) {
   throw new Error('Navbar does not render /deepclaw.png')
 }
-if (navbar.includes('>BaseClaw<')) {
-  throw new Error('Navbar still renders BaseClaw text')
+if (navbar.includes('>DeepClaw<')) {
+  throw new Error('Navbar still renders DeepClaw text')
 }
 if (navbar.includes('text-sm">O</span>')) {
   throw new Error('Navbar still renders the old O icon')
@@ -254,8 +254,8 @@ if (navbar.includes('text-sm">O</span>')) {
 if (!chatPanel.includes('欢迎使用 DeepClaw')) {
   throw new Error('Welcome page does not use DeepClaw')
 }
-if (chatPanel.includes('欢迎使用 BaseClaw')) {
-  throw new Error('Welcome page still uses BaseClaw')
+if (chatPanel.includes('欢迎使用 DeepClaw')) {
+  throw new Error('Welcome page still uses DeepClaw')
 }
 NODE
 ```

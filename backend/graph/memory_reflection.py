@@ -14,7 +14,7 @@ ALLOWED_ACTIONS = {"ADD", "UPDATE", "DELETE", "NONE"}
 MIN_CONFIDENCE = 0.75
 
 
-REFLECTION_SYSTEM_PROMPT = """你是 BaseClaw 的记忆反思器。你的任务是从本轮用户消息和助手回复中提取长期有用的记忆操作。
+REFLECTION_SYSTEM_PROMPT = """你是 DeepClaw 的记忆反思器。你的任务是从本轮用户消息和助手回复中提取长期有用的记忆操作。
 
 只保存以下信息：
 - durable user preferences about assistant behavior or workflow

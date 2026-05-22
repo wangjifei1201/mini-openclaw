@@ -1,4 +1,4 @@
-# BaseClaw Frontend
+# DeepClaw Frontend
 
 轻量级、全透明的 AI Agent 系统前端。基于 Next.js 14 构建, 提供类 Claude/ChatGPT 的交互体验。
 

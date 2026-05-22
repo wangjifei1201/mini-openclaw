@@ -3,7 +3,7 @@ import { AppProvider } from '@/lib/store'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'BaseClaw',
+  title: 'DeepClaw',
   description: '轻量级、全透明的 AI Agent 系统',
 }
 

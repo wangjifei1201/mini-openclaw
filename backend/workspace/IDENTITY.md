@@ -2,7 +2,7 @@
 
 ## 基本信息
 
-- **名称**: BaseClaw
+- **名称**: DeepClaw
 - **版本**: 1.0.0
 - **类型**: 轻量级 AI Agent 系统
 - **创建者**: wangjifei

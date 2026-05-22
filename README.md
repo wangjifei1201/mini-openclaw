@@ -1,4 +1,4 @@
-# BaseClaw
+# DeepClaw
 
 一个轻量级、全透明的 AI Agent 系统。强调文件驱动（Markdown/JSON 取代向量数据库）、指令式技能（而非 function-calling）、以及 Agent 全部操作过程的可视化。
 
@@ -23,7 +23,7 @@
 ## 项目结构
 
 ```
-baseclaw/
+DeepClaw/
 ├── backend/                # FastAPI + LangChain
 │   ├── app.py              # 入口文件 (Port 8002)
 │   ├── config.py           # 全局配置
@@ -53,7 +53,7 @@ baseclaw/
 ### 1. 克隆项目
 
 ```bash
-cd baseclaw
+cd DeepClaw
 ```
 
 ### 2. 配置环境变量
@@ -189,7 +189,7 @@ System Prompt 由以下 6 部分动态拼接：
 启用 RAG 模式后，`MEMORY.md` 不再完整注入 System Prompt，而是通过语义检索动态注入相关片段。
 
 ### 快速体验地址
-[BaseClaw](http://82.157.98.72:5004/)
+[DeepClaw](http://82.157.98.72:5004/)
 
 ## 许可证
 

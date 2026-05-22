@@ -24,7 +24,7 @@ UNSAFE_PROMPT_PATTERNS = [
     )
 ]
 
-INTERACTIVE_CARD_SYSTEM_PROMPT = """你是 BaseClaw 的交互卡片生成器。
+INTERACTIVE_CARD_SYSTEM_PROMPT = """你是 DeepClaw 的交互卡片生成器。
 
 根据用户消息和助手回复，判断是否需要生成一张交互卡片。
 只输出 JSON，不要输出 Markdown、解释或额外文本。
