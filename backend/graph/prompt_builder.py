@@ -4,6 +4,7 @@ System Prompt 组装器 - 动态拼接 6 个 Markdown 文件
 from pathlib import Path
 from typing import Optional
 from config import settings, get_rag_mode
+from tools.skills_scanner import scan_and_save_skills
 
 
 class PromptBuilder:
@@ -60,6 +61,11 @@ class PromptBuilder:
         parts = []
         
         # 1. SKILLS_SNAPSHOT.md (能力列表)
+        try:
+            scan_and_save_skills(self.base_dir)
+        except Exception:
+            pass
+
         skills_snapshot = self._read_file(
             self.base_dir / "SKILLS_SNAPSHOT.md",
             "Skills Snapshot"

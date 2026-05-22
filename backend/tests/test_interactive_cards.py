@@ -163,6 +163,37 @@ class InteractiveCardTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("交互卡片", prompt)
         self.assertIn("不要输出 JSON、HTML、按钮代码或任何前端协议字段", prompt)
 
+    def test_prompt_builder_scans_skills_directory_on_each_build(self):
+        import tempfile
+        from pathlib import Path
+
+        from graph.prompt_builder import PromptBuilder
+        from tools.skills_scanner import scan_and_save_skills
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_dir = Path(tmpdir)
+            (base_dir / "workspace").mkdir()
+            (base_dir / "memory").mkdir()
+            skills_dir = base_dir / "skills"
+            skills_dir.mkdir()
+            scan_and_save_skills(base_dir)
+
+            dynamic_skill_dir = skills_dir / "dynamic-skill"
+            dynamic_skill_dir.mkdir()
+            (dynamic_skill_dir / "SKILL.md").write_text(
+                "---\n"
+                "name: dynamic-skill\n"
+                "description: Runtime-added skill should be visible without restart.\n"
+                "---\n"
+                "# Dynamic Skill\n",
+                encoding="utf-8",
+            )
+
+            prompt = PromptBuilder(base_dir).build_system_prompt(rag_mode=False)
+
+        self.assertIn("dynamic-skill", prompt)
+        self.assertIn("Runtime-added skill should be visible without restart.", prompt)
+
     async def test_agent_generate_interactive_cards_delegates_to_service(self):
         from graph.agent import AgentManager
 
