@@ -45,7 +45,9 @@
 
 ### 根据任务需要生成文件
 
-如果当用户任务完成时，有生成结果文件的需要时，必须将结果保存在 `./outputs/` 文件夹下。并给出生成文件的跳转链接，链接参考：<a href="{http://ip:port}/outputs/{file_name}">生成的文件名称</a>
+如果任务需要生成结果文件，必须保存到当前会话专属输出目录 `outputs/<session_id>/` 下；当前 `session_id` 会在运行时上下文中给出。
+回复用户时必须使用 Markdown 链接，并使用 `/outputs/<session_id>/<filename>` 形式，例如：`[查看 PDF](/outputs/<session_id>/report.pdf)`。
+不要写入 `outputs/` 根目录，不要返回 `localhost`、IP 地址、前端地址或本地绝对路径。
 
 ## 内置工具说明
 

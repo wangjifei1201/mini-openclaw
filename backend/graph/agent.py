@@ -130,17 +130,32 @@ class AgentManager:
 
         return agent
 
-    def _build_messages(self, history: List[Dict[str, Any]]) -> List:
+    def _format_session_output_context(self, session_id: str) -> str:
+        """Format runtime-only instructions for session-scoped output files."""
+        return (
+            f"当前会话 ID: {session_id}\n"
+            f"生成文件必须保存到 outputs/{session_id}/ 目录。\n"
+            f"回复用户时必须使用 Markdown 链接，并使用 /outputs/{session_id}/<filename> 形式。\n"
+            "不要写入 outputs/ 根目录，不要返回 localhost、IP 地址、前端地址或本地绝对路径。"
+        )
+
+    def _build_messages(
+        self, history: List[Dict[str, Any]], session_id: Optional[str] = None
+    ) -> List:
         """
         将会话历史转换为 LangChain 消息格式
 
         Args:
             history: 会话历史（dict 列表）
+            session_id: 会话ID（可选，用于注入运行时输出路径约束）
 
         Returns:
             LangChain 消息列表
         """
         messages = []
+        if session_id:
+            messages.append(SystemMessage(content=self._format_session_output_context(session_id)))
+
         for msg in history:
             role = msg.get("role", "user")
             content = msg.get("content", "")
@@ -219,7 +234,7 @@ class AgentManager:
             agent = self._build_agent()
 
             # 转换历史消息并追加当前用户消息
-            chat_history = self._build_messages(history)
+            chat_history = self._build_messages(history, session_id=session_id)
             chat_history.append(HumanMessage(content=message))
 
             # create_agent 返回 CompiledStateGraph，输入为 {"messages": [...]}

@@ -33,6 +33,10 @@ function extractText(children: React.ReactNode): string {
 // 检测是否包含 box-drawing 字符（ASCII art）
 const BOX_DRAWING_REGEX = /[┌┐└┘├┤┬┴┼─│═║╔╗╚╝╠╣╦╩╬▼▲◀▶■□▪▫●○◆◇★☆→←↑↓↔↕]/
 
+const normalizeBackendOutputLinks = (content: string) => {
+  return content.replace(/href="\{[^}"]*\}(\/outputs\/[^"<>\s]+)"/g, 'href="$1"')
+}
+
 // HTML 净化配置：允许基本 HTML 标签，阻止危险标签和属性
 const sanitizeSchema = {
   ...defaultSchema,
@@ -61,7 +65,7 @@ const sanitizeSchema = {
   },
   protocols: {
     ...defaultSchema.protocols,
-    href: ['http', 'https', 'mailto'],
+    href: ['http', 'https', 'mailto', '/'],
     src: ['http', 'https'],
   },
 }
@@ -199,7 +203,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                     )
                   },
                   // 链接样式
-                  a({ children, href, ...props }) {
+                  a({ children, href, node, ...props }) {
                     const resolvedHref = resolveBackendOutputUrl(href) || href
                     const shouldDownload = isBackendOutputPath(href) && !isPdfOutputPath(href)
 
@@ -218,7 +222,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                   },
                 }}
               >
-                {message.content}
+                {normalizeBackendOutputLinks(message.content)}
               </ReactMarkdown>
             </div>
           )}

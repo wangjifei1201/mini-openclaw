@@ -144,6 +144,39 @@ class ChatInteractiveCardsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["interactive_cards"], [])
         manager.session_manager.save_message.assert_any_call(session_id, "assistant", "回复内容", [], [])
 
+    async def test_streaming_chat_creates_session_output_directory(self):
+        from api.chat import ChatRequest, chat
+
+        session_id = "123e4567-e89b-12d3-a456-426614174000"
+
+        manager = SimpleNamespace(
+            session_manager=MagicMock(load_session=MagicMock(return_value=[])),
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("api.chat.agent_manager", manager), patch("api.chat.BASE_DIR", Path(tmpdir)):
+                response = await chat(ChatRequest(message="生成文件", session_id=session_id, stream=True))
+
+            self.assertEqual(response.media_type, "text/event-stream")
+            self.assertTrue((Path(tmpdir) / "outputs" / session_id).is_dir())
+
+    async def test_non_streaming_chat_rejects_invalid_session_id_before_creating_output_directory(self):
+        from fastapi import HTTPException
+        from api.chat import ChatRequest, chat
+
+        invalid_session_id = "../escape"
+        manager = SimpleNamespace(
+            session_manager=MagicMock(load_session=MagicMock(return_value=[])),
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("api.chat.agent_manager", manager), patch("api.chat.BASE_DIR", Path(tmpdir)):
+                with self.assertRaises(HTTPException) as ctx:
+                    await chat(ChatRequest(message="生成文件", session_id=invalid_session_id, stream=False))
+
+            self.assertEqual(ctx.exception.status_code, 400)
+            self.assertFalse((Path(tmpdir) / "outputs" / invalid_session_id).exists())
+
 
 if __name__ == "__main__":
     unittest.main()

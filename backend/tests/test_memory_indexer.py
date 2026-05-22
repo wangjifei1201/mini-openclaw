@@ -1,9 +1,10 @@
+import asyncio
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from graph.agent import AgentManager
 from graph.memory_indexer import MemoryIndexer
@@ -273,6 +274,105 @@ class MemoryIndexerTests(unittest.TestCase):
             indexer = MemoryIndexer(Path(tmpdir), store=store)
 
             self.assertIs(indexer.memory_store, store)
+
+    def test_format_session_output_context_includes_session_scoped_paths(self):
+        manager = AgentManager()
+        session_id = "123e4567-e89b-12d3-a456-426614174000"
+
+        context = manager._format_session_output_context(session_id)
+
+        self.assertIn(f"当前会话 ID: {session_id}", context)
+        self.assertIn(f"outputs/{session_id}/", context)
+        self.assertIn(f"/outputs/{session_id}/<filename>", context)
+        self.assertIn("不要写入 outputs/ 根目录", context)
+
+    def test_build_messages_injects_session_output_context_before_user_message(self):
+        manager = AgentManager()
+        session_id = "123e4567-e89b-12d3-a456-426614174000"
+
+        messages = manager._build_messages(
+            [
+                {"role": "user", "content": "生成 PDF"},
+            ],
+            session_id=session_id,
+        )
+
+        self.assertEqual(len(messages), 2)
+        self.assertIsInstance(messages[0], SystemMessage)
+        self.assertIn(f"outputs/{session_id}/", messages[0].content)
+        self.assertIsInstance(messages[1], HumanMessage)
+        self.assertEqual(messages[1].content, "生成 PDF")
+
+    def test_build_messages_preserves_order_with_session_context_and_existing_history(self):
+        manager = AgentManager()
+        session_id = "session-ordering"
+
+        messages = manager._build_messages(
+            [
+                {"role": "system", "content": "existing system instruction"},
+                {"role": "user", "content": "previous user message"},
+                {"role": "assistant", "content": "previous assistant response"},
+            ],
+            session_id=session_id,
+        )
+
+        self.assertEqual(len(messages), 4)
+        self.assertIsInstance(messages[0], SystemMessage)
+        self.assertIn(f"outputs/{session_id}/", messages[0].content)
+        self.assertIsInstance(messages[1], SystemMessage)
+        self.assertEqual(messages[1].content, "existing system instruction")
+        self.assertIsInstance(messages[2], HumanMessage)
+        self.assertEqual(messages[2].content, "previous user message")
+        self.assertIsInstance(messages[3], AIMessage)
+        self.assertEqual(messages[3].content, "previous assistant response")
+
+    def test_build_messages_with_session_context_does_not_mutate_history(self):
+        manager = AgentManager()
+        history = [
+            {"role": "system", "content": "existing system instruction"},
+            {"role": "user", "content": "生成 PDF"},
+        ]
+        original_history = [dict(item) for item in history]
+
+        manager._build_messages(history, session_id="session-no-mutation")
+
+        self.assertEqual(history, original_history)
+
+    def test_astream_passes_session_id_to_build_messages_and_input_state_has_session_context(self):
+        class FakeAgent:
+            def __init__(self):
+                self.input_state = None
+
+            async def astream_events(self, input_state, config=None, version=None):
+                self.input_state = input_state
+                return
+                yield
+
+        manager = AgentManager()
+        fake_agent = FakeAgent()
+        session_id = "session-astream"
+        history = [{"role": "user", "content": "previous request"}]
+        manager.memory_indexer = MagicMock()
+        manager.memory_indexer.format_active_memory_context.return_value = ""
+        manager._build_agent = MagicMock(return_value=fake_agent)
+        original_build_messages = manager._build_messages
+        manager._build_messages = MagicMock(wraps=original_build_messages)
+
+        events = asyncio.run(_collect_async(manager.astream("生成 PDF", session_id=session_id, history=history)))
+
+        manager._build_messages.assert_called_once_with(history, session_id=session_id)
+        self.assertEqual(events[-1]["type"], "done")
+        messages = fake_agent.input_state["messages"]
+        self.assertIsInstance(messages[0], SystemMessage)
+        self.assertIn(f"outputs/{session_id}/", messages[0].content)
+        self.assertIsInstance(messages[1], HumanMessage)
+        self.assertEqual(messages[1].content, "previous request")
+        self.assertIsInstance(messages[2], HumanMessage)
+        self.assertEqual(messages[2].content, "生成 PDF")
+
+
+async def _collect_async(async_iterable):
+    return [item async for item in async_iterable]
 
 
 if __name__ == "__main__":

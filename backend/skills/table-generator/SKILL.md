@@ -15,7 +15,7 @@ description: 根据用户自然语言描述生成表格。用于用户要求生�
 4. 用户确认后生成 Excel 文件：
    - 默认生成 `.xlsx`。
    - 只有用户明确要求 `.xls` 时才生成 `.xls`。
-5. 将文件保存到 `outputs/` 目录，并返回可下载路径。
+5. 将文件保存到运行时上下文指定的 `outputs/<session_id>/` 目录，并返回 Markdown 下载链接。
 
 ## Markdown 预览规则
 
@@ -34,12 +34,15 @@ description: 根据用户自然语言描述生成表格。用于用户要求生�
 生成 `.xlsx` 时优先使用 Python `openpyxl`：
 
 ```python
+from datetime import datetime
 from pathlib import Path
 from openpyxl import Workbook
 
-output_dir = Path("outputs")
+session_id = "从运行时上下文读取当前 session_id"
+output_dir = Path("outputs") / session_id
 output_dir.mkdir(parents=True, exist_ok=True)
-output_path = output_dir / "table.xlsx"
+filename = f"table-{datetime.now().strftime('%Y%m%d-%H%M%S')}.xlsx"
+output_path = output_dir / filename
 
 wb = Workbook()
 ws = wb.active
@@ -63,11 +66,12 @@ wb.save(output_path)
 
 ## 输出路径
 
-- 文件应保存到后端 `outputs/` 目录。
-- 回复用户时必须使用 Markdown 链接，并使用 `/outputs/<filename>` 形式的相对输出路径。
+- 文件应保存到运行时上下文指定的后端 `outputs/<session_id>/` 目录。
+- 回复用户时必须使用 Markdown 链接，并使用 `/outputs/<session_id>/<filename>` 形式的相对输出路径。
+- 不要写入 `outputs/` 根目录。
 - 不要返回 `localhost`、IP 地址、前端地址或本地绝对路径。
-- Excel 示例：`已生成文件：[下载 Excel](/outputs/table-20260521.xlsx)`。
-- PDF 示例：`已生成文件：[查看 PDF](/outputs/report-20260521.pdf)`。
+- Excel 示例：`已生成文件：[下载 Excel](/outputs/<session_id>/table-20260522.xlsx)`。
+- PDF 示例：`已生成文件：[查看 PDF](/outputs/<session_id>/report-20260522.pdf)`。
 
 ## 质量要求
 

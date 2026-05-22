@@ -3,11 +3,14 @@
 """
 import json
 import asyncio
+import uuid
+from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from config import BASE_DIR
 from graph import agent_manager
 
 
@@ -27,6 +30,20 @@ async def _reflect_memory_background(user_message: str, assistant_text: str):
         await agent_manager.reflect_memory(user_message, assistant_text)
     except Exception:
         pass
+
+
+def _validate_session_id(session_id: str) -> str:
+    try:
+        return str(uuid.UUID(session_id))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid session_id")
+
+
+def _ensure_session_output_dir(session_id: str) -> Path:
+    safe_session_id = _validate_session_id(session_id)
+    output_dir = BASE_DIR / "outputs" / safe_session_id
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
 
 
 async def _generate_interactive_cards_best_effort(user_message: str, assistant_text: str):
@@ -164,6 +181,8 @@ async def chat(request: ChatRequest):
     - title: 自动生成的标题（首条消息）
     - error: 错误
     """
+    _ensure_session_output_dir(request.session_id)
+
     # 检查是否为首条消息
     history = agent_manager.session_manager.load_session(request.session_id)
     is_first_message = len(history) == 0
