@@ -168,7 +168,7 @@ export default function ChatInput() {
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.bmp,.txt,.md,.pdf,.csv,.xlsx,.xls,.json,.xml,.yaml,.yml,.py,.js,.ts,.tsx,.jsx,.html,.css,.log,.sql,.sh"
+            accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.bmp,.txt,.md,.pdf,.doc,.docx,.csv,.xlsx,.xls,.json,.xml,.yaml,.yml,.py,.js,.ts,.tsx,.jsx,.html,.css,.log,.sql,.sh"
             onChange={handleFileSelect}
             className="hidden"
           />

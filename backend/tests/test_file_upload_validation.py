@@ -52,6 +52,29 @@ class UploadFileValidationTest(unittest.TestCase):
                 self.assertTrue(is_valid)
                 self.assertEqual("", error_message)
 
+    def test_accepts_word_documents(self):
+        """Word document files are accepted for upload."""
+        for filename in ("proposal.doc", "proposal.docx"):
+            with self.subTest(filename=filename):
+                is_valid, error_message = validate_upload_file(filename, 1024)
+
+                self.assertTrue(is_valid)
+                self.assertEqual("", error_message)
+
+    def test_accepts_files_up_to_200mb(self):
+        """Single upload file limit is 200MB."""
+        is_valid, error_message = validate_upload_file("large.pdf", 200 * 1024 * 1024)
+
+        self.assertTrue(is_valid)
+        self.assertEqual("", error_message)
+
+    def test_rejects_files_over_200mb(self):
+        """Files larger than 200MB are rejected."""
+        is_valid, error_message = validate_upload_file("too-large.pdf", 200 * 1024 * 1024 + 1)
+
+        self.assertFalse(is_valid)
+        self.assertIn("限制: 200MB", error_message)
+
 
 if __name__ == "__main__":
     unittest.main()

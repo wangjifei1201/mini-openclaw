@@ -45,7 +45,7 @@ ALLOWED_UPLOAD_EXTENSIONS = {
     # 图片
     ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp",
     # 文档
-    ".txt", ".md", ".pdf", ".csv", ".xlsx", ".xls", ".json", ".xml", ".yaml", ".yml",
+    ".txt", ".md", ".pdf", ".doc", ".docx", ".csv", ".xlsx", ".xls", ".json", ".xml", ".yaml", ".yml",
     # 代码
     ".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".go", ".rs", ".c", ".cpp", ".h",
     ".html", ".css", ".scss", ".vue", ".swift", ".kt", ".rb", ".php",
@@ -53,8 +53,8 @@ ALLOWED_UPLOAD_EXTENSIONS = {
     ".log", ".sql", ".sh",
 }
 
-# 单个文件大小限制 (10MB)
-MAX_UPLOAD_FILE_SIZE = 10 * 1024 * 1024
+# 单个文件大小限制 (200MB)
+MAX_UPLOAD_FILE_SIZE = 200 * 1024 * 1024
 
 
 class SaveFileRequest(BaseModel):
@@ -183,7 +183,7 @@ def validate_upload_file(filename: str, file_size: int) -> tuple:
         return False, f"不支持的文件类型: {ext}"
 
     if file_size > MAX_UPLOAD_FILE_SIZE:
-        return False, f"文件过大: {file_size / 1024 / 1024:.1f}MB (限制: 10MB)"
+        return False, f"文件过大: {file_size / 1024 / 1024:.1f}MB (限制: 200MB)"
 
     if ".." in filename or "/" in filename or "\\" in filename:
         return False, "非法文件名"
